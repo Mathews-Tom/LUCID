@@ -1,0 +1,5 @@
+[general]
+profile = "balanced"
+
+[humanizer]
+adversarial_iterations = 3
