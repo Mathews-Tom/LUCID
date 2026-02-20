@@ -1,0 +1,11 @@
+This is the first paragraph of the plain text document. It contains
+multiple lines that belong to the same logical paragraph.
+
+This is the second paragraph. It is separated from the first by a
+blank line, which is the standard paragraph delimiter.
+
+The third paragraph is shorter.
+
+A fourth paragraph demonstrates that the parser handles multiple
+consecutive paragraph breaks correctly and maintains proper position
+tracking throughout the document.

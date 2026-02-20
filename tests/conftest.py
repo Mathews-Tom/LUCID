@@ -39,3 +39,9 @@ def corpus_latex_dir() -> Path:
 def corpus_markdown_dir() -> Path:
     """Path to Markdown test corpus."""
     return CORPUS_DIR / "markdown"
+
+
+@pytest.fixture
+def corpus_plaintext_dir() -> Path:
+    """Path to plain text test corpus."""
+    return CORPUS_DIR / "plaintext"

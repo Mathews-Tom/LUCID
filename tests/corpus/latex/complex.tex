@@ -1,0 +1,82 @@
+\documentclass{article}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\usepackage{amsthm}
+
+\newtheorem{theorem}{Theorem}
+
+\title{A Complex Document}
+\author{Test Author}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This abstract summarizes the key findings of our research into document
+parsing and reconstruction algorithms.
+\end{abstract}
+
+\section{Introduction}
+
+We present our results in the following sections. Previous work by
+\cite{knuth1984} established the foundation. See also \citep{lamport1994}.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.5\textwidth]{placeholder.png}
+\caption{An example figure with a descriptive caption that contains prose.}
+\label{fig:example}
+\end{figure}
+
+\section{Methods}
+
+\begin{itemize}
+\item First item describes the parsing approach.
+\item Second item covers the reconstruction algorithm.
+\item Third item addresses validation.
+\end{itemize}
+
+\begin{enumerate}
+\item Step one of the process.
+\item Step two involves computation.
+\end{enumerate}
+
+\begin{theorem}
+For all documents $d$ in the corpus, the round-trip identity holds:
+$\text{reconstruct}(\text{parse}(d)) = d$.
+\end{theorem}
+
+\begin{proof}
+The proof follows from position tracking. Each chunk records its exact
+start and end positions in the original string.
+\end{proof}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{|l|r|}
+\hline
+Format & Files \\
+\hline
+LaTeX & 5 \\
+Markdown & 5 \\
+Plain text & 3 \\
+\hline
+\end{tabular}
+\caption{Test corpus composition.}
+\label{tab:corpus}
+\end{table}
+
+\begin{verbatim}
+This is verbatim text that should be preserved exactly.
+  Including whitespace and $math$.
+\end{verbatim}
+
+\section{Conclusion}
+
+The parser correctly handles all tested document structures.
+
+\bibliography{references}
+\bibliographystyle{plain}
+
+\end{document}
