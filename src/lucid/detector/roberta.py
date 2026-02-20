@@ -187,7 +187,7 @@ def _load_onnx_session(model_id: str) -> ort.InferenceSession:
 
         onnx_path = hf_hub_download(
             repo_id=_ONNX_MODEL_ID,
-            filename="model.onnx",
+            filename="onnx/model.onnx",
         )
         session = ort.InferenceSession(
             onnx_path,
