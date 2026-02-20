@@ -1,0 +1,68 @@
+[general]
+profile = "balanced"
+language = "en"
+log_level = "info"
+output_dir = "./lucid_output"
+
+[ollama]
+host = "http://localhost:11434"
+timeout_seconds = 60
+health_check_on_start = true
+
+[ollama.models]
+fast = "phi3:3.8b"
+balanced = "qwen2.5:7b"
+quality = "llama3.1:8b"
+
+[detection]
+enabled = true
+roberta_model = "roberta-base-openai-detector"
+use_statistical = true
+use_binoculars = false
+
+[detection.ensemble_weights]
+roberta = 0.7
+statistical = 0.3
+
+[detection.ensemble_weights_with_binoculars]
+roberta = 0.4
+statistical = 0.15
+binoculars = 0.45
+
+[detection.thresholds]
+human_max = 0.30
+ai_min = 0.65
+ambiguity_triggers_binoculars = true
+
+[humanizer]
+max_retries = 3
+adversarial_iterations = 5
+adversarial_target_score = 0.25
+
+[humanizer.temperature]
+fast = 0.7
+balanced = 0.6
+quality = 0.5
+
+[humanizer.term_protection]
+use_ner = true
+custom_terms = []
+protect_citations = true
+protect_numbers = true
+
+[evaluator]
+embedding_threshold = 0.80
+nli_require_bidirectional = true
+bertscore_threshold = 0.88
+bertscore_model = "microsoft/deberta-xlarge-mnli"
+
+[parser]
+latex_library = "pylatexenc"
+markdown_library = "markdown-it-py"
+custom_prose_environments = []
+custom_structural_macros = []
+
+[validation]
+latex_compile_check = true
+latex_compiler = "pdflatex"
+markdown_render_check = true

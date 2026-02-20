@@ -1,0 +1,20 @@
+[general]
+profile = "quality"
+
+[ollama]
+timeout_seconds = 120
+
+[detection]
+use_binoculars = true
+
+[humanizer]
+max_retries = 5
+adversarial_iterations = 5
+
+[evaluator]
+embedding_threshold = 0.85
+bertscore_threshold = 0.90
+
+[validation]
+latex_compile_check = true
+markdown_render_check = true
