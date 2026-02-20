@@ -1,0 +1,10 @@
+This is a normal paragraph at the beginning of the document.
+
+The following text resembles a bullet list but is plain text:
+- Item one in a bullet-like format.
+- Item two continues the pattern.
+- Item three ends the pseudo-list.
+
+Another paragraph follows the bullet-like content. The parser should
+treat this entire section as prose since there is no structural markup
+in plain text.

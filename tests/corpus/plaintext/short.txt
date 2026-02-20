@@ -1,0 +1,1 @@
+This is a single paragraph document with no blank lines at all. It serves as a minimal test case for the plain text parser.
