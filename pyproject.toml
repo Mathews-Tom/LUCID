@@ -144,3 +144,8 @@ exclude_lines = [
     "raise NotImplementedError",
     "\\.\\.\\.",
 ]
+
+[dependency-groups]
+dev = [
+    "twine>=6.2.0",
+]
