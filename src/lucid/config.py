@@ -125,7 +125,9 @@ class HumanizerConfig:
 class EvaluatorConfig:
     """Semantic evaluation settings."""
 
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     embedding_threshold: float = 0.80
+    nli_model: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
     nli_require_bidirectional: bool = True
     bertscore_threshold: float = 0.88
     bertscore_model: str = "microsoft/deberta-xlarge-mnli"

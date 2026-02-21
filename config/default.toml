@@ -51,7 +51,9 @@ protect_citations = true
 protect_numbers = true
 
 [evaluator]
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
 embedding_threshold = 0.80
+nli_model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
 nli_require_bidirectional = true
 bertscore_threshold = 0.88
 bertscore_model = "microsoft/deberta-xlarge-mnli"

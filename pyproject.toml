@@ -31,6 +31,9 @@ dependencies = [
     "onnxruntime>=1.19.0",
     "spacy>=3.7.0",
     "xgboost>=2.0.0",
+    "sentence-transformers>=3.0.0",
+    "bert-score>=0.3.13",
+    "torch>=2.4.0",
 ]
 
 [project.optional-dependencies]
@@ -42,7 +45,6 @@ dev = [
     "mypy>=1.11.0",
 ]
 detection-full = [
-    "torch>=2.4.0",
     "optimum[onnxruntime]>=1.19.0",
 ]
 
