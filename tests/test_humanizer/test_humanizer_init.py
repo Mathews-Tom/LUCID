@@ -18,7 +18,6 @@ from lucid.humanizer import LUCIDHumanizer
 from lucid.models.results import DetectionResult, ParaphraseResult
 from lucid.parser.chunk import ProseChunk
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

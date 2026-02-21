@@ -24,7 +24,6 @@ from lucid.humanizer.term_protect import TermProtector
 from lucid.models.results import DetectionResult, ParaphraseResult
 from lucid.parser.chunk import ProseChunk
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -203,7 +202,7 @@ class TestAdversarialLoop:
         # First response drops placeholder, second preserves it
         responses = [
             "See Smith 2024 for details.",  # Missing placeholder → skip
-            f"See {list(protected.term_placeholders.keys())[0]} for reference.",  # Valid
+            f"See {next(iter(protected.term_placeholders.keys()))} for reference.",  # Valid
             "Another bad response.",  # Missing → skip
         ]
         client = _make_mock_client(responses)

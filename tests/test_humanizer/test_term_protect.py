@@ -8,13 +8,12 @@ import pytest
 
 from lucid.config import TermProtectionConfig
 from lucid.humanizer.term_protect import (
-    ProtectedText,
-    TermProtector,
     _CLOSE,
     _OPEN,
+    ProtectedText,
+    TermProtector,
 )
 from lucid.parser.chunk import ProseChunk
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -219,7 +218,9 @@ class TestRoundTrip:
             [("OpenAI", "ORG", 0, 6), ("GPT-4", "PRODUCT", 16, 21)]
         )
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=True, protect_citations=False, protect_numbers=False))
+        protector = TermProtector(
+            _cfg(use_ner=True, protect_citations=False, protect_numbers=False)
+        )
         protected = protector.protect(chunk)
         restored = protector.restore(
             protected.text,
@@ -246,7 +247,9 @@ class TestConfigToggles:
     def test_protect_numbers_false_leaves_numbers(self) -> None:
         text = "There are 42 samples and 3.14 ratio."
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=False, protect_citations=False, protect_numbers=False))
+        protector = TermProtector(
+            _cfg(use_ner=False, protect_citations=False, protect_numbers=False)
+        )
         result = protector.protect(chunk)
         assert "42" in result.text
         assert "3.14" in result.text
@@ -254,7 +257,9 @@ class TestConfigToggles:
     def test_protect_numbers_true_replaces_numbers(self) -> None:
         text = "The score is 95.3%."
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=False, protect_citations=False, protect_numbers=True))
+        protector = TermProtector(
+            _cfg(use_ner=False, protect_citations=False, protect_numbers=True)
+        )
         result = protector.protect(chunk)
         assert "95.3" not in result.text
         assert any("95.3%" in v or "95.3" in v for v in result.term_placeholders.values())
@@ -275,11 +280,13 @@ class TestConfigToggles:
             [("DeepMind", "ORG", 0, 8), ("AlphaFold", "PRODUCT", 15, 24)]
         )
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=True, protect_citations=False, protect_numbers=False))
+        protector = TermProtector(
+            _cfg(use_ner=True, protect_citations=False, protect_numbers=False)
+        )
         result = protector.protect(chunk)
         mock_load.assert_called_once_with("en_core_web_sm")
         # Both entities must be replaced
-        assert "DeepMind" not in result.text or "AlphaFold" not in result.text or len(result.term_placeholders) >= 1
+        assert len(result.term_placeholders) >= 1
 
 
 # ---------------------------------------------------------------------------
@@ -443,7 +450,10 @@ class TestCustomTerms:
         text = "The LSTM performed well."
         chunk = _make_chunk(text)
         protector = TermProtector(
-            _cfg(use_ner=False, protect_citations=False, protect_numbers=False, custom_terms=("LSTM",))
+            _cfg(
+                use_ner=False, protect_citations=False,
+                protect_numbers=False, custom_terms=("LSTM",),
+            )
         )
         result = protector.protect(chunk)
 
@@ -504,21 +514,27 @@ class TestNumberProtection:
     def test_integer_protected(self) -> None:
         text = "There are 256 nodes in the network."
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=False, protect_citations=False, protect_numbers=True))
+        protector = TermProtector(
+            _cfg(use_ner=False, protect_citations=False, protect_numbers=True)
+        )
         result = protector.protect(chunk)
         assert "256" not in result.text
 
     def test_decimal_protected(self) -> None:
         text = "The learning rate is 0.001."
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=False, protect_citations=False, protect_numbers=True))
+        protector = TermProtector(
+            _cfg(use_ner=False, protect_citations=False, protect_numbers=True)
+        )
         result = protector.protect(chunk)
         assert "0.001" not in result.text
 
     def test_percentage_protected(self) -> None:
         text = "Accuracy improved by 12.5%."
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=False, protect_citations=False, protect_numbers=True))
+        protector = TermProtector(
+            _cfg(use_ner=False, protect_citations=False, protect_numbers=True)
+        )
         result = protector.protect(chunk)
         assert "12.5%" not in result.text
         assert any("12.5%" in v or "12.5" in v for v in result.term_placeholders.values())
@@ -561,7 +577,9 @@ class TestNerErrorHandling:
         with patch("spacy.load", side_effect=OSError("model not found")):
             text = "Google is headquartered in California."
             chunk = _make_chunk(text)
-            protector = TermProtector(_cfg(use_ner=True, protect_citations=False, protect_numbers=False))
+            protector = TermProtector(
+                _cfg(use_ner=True, protect_citations=False, protect_numbers=False)
+            )
             with pytest.raises(RuntimeError, match="en_core_web_sm"):
                 protector.protect(chunk)
 
@@ -571,7 +589,9 @@ class TestNerErrorHandling:
         # NER returns a single-char entity "A"
         mock_load.return_value = _make_mock_nlp([("A", "ORG", 4, 5)])
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=True, protect_citations=False, protect_numbers=False))
+        protector = TermProtector(
+            _cfg(use_ner=True, protect_citations=False, protect_numbers=False)
+        )
         result = protector.protect(chunk)
         # "A" (single char) must NOT appear in term_placeholders
         assert "A" not in result.term_placeholders.values()
@@ -582,6 +602,8 @@ class TestNerErrorHandling:
         # NER returns DATE entity, which is not in ORG/PERSON/GPE/PRODUCT
         mock_load.return_value = _make_mock_nlp([("Tuesday", "DATE", 5, 12)])
         chunk = _make_chunk(text)
-        protector = TermProtector(_cfg(use_ner=True, protect_citations=False, protect_numbers=False))
+        protector = TermProtector(
+            _cfg(use_ner=True, protect_citations=False, protect_numbers=False)
+        )
         result = protector.protect(chunk)
         assert "Tuesday" not in result.term_placeholders.values()
