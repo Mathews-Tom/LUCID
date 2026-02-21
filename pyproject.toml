@@ -118,7 +118,6 @@ markers = [
 source = ["src/lucid"]
 omit = [
     "src/lucid/cli.py",
-    "src/lucid/humanizer/*",
     "src/lucid/reconstructor/*",
 ]
 

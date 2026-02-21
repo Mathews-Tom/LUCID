@@ -1,0 +1,17 @@
+domain = "stem"
+
+[[pairs]]
+input = "The proposed methodology demonstrates significant improvements over baseline approaches across multiple evaluation metrics. The experimental results validate the effectiveness of our framework in achieving state-of-the-art performance on benchmark datasets."
+output = "Our method outperforms existing baselines on several metrics. Across the benchmark datasets we tested, the framework consistently achieves top results — suggesting it generalises well beyond the training distribution."
+
+[[pairs]]
+input = "Extensive experimental validation demonstrates that the model exhibits convergence properties that are optimal in the asymptotic regime. The mathematical framework provides theoretical guarantees for stable performance across diverse test domains."
+output = "We ran extensive experiments confirming the model converges reliably. The underlying math gives us solid guarantees that performance stays stable, even when we switch to quite different test domains."
+
+[[pairs]]
+input = "The architecture leverages attention mechanisms to capture long-range dependencies in sequential data. This enables the model to effectively process variable-length inputs while maintaining computational efficiency through sparse attention patterns."
+output = "By using attention, the architecture picks up on long-range patterns in sequences. Sparse attention keeps things computationally tractable, and the model handles variable-length inputs without trouble."
+
+[[pairs]]
+input = "It is observed that the training procedure exhibits sensitivity to hyperparameter selection, particularly the learning rate schedule. Furthermore, batch normalization was found to be essential for preventing gradient instability during the early stages of optimization."
+output = "Training turned out to be fairly sensitive to hyperparameters — the learning rate schedule matters a lot. We also found that batch normalization is pretty much essential early on; without it, gradients tend to blow up."

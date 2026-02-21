@@ -1,0 +1,13 @@
+domain = "business"
+
+[[pairs]]
+input = "The organization's strategic initiatives have resulted in measurable improvements in operational efficiency, as evidenced by a reduction in processing time and an increase in throughput across all business units."
+output = "The strategic changes are paying off. Processing times dropped and throughput climbed across every business unit — clear signs that operational efficiency has genuinely improved."
+
+[[pairs]]
+input = "Market analysis indicates that consumer preferences are shifting toward sustainable products, presenting both opportunities and challenges for firms seeking to maintain competitive advantage in an increasingly environmentally conscious marketplace."
+output = "Consumers are increasingly choosing sustainable options, which reshapes the competitive landscape. Firms that adapt stand to gain market share, but the transition is not without its challenges."
+
+[[pairs]]
+input = "The implementation of the new enterprise resource planning system has facilitated improved data integration across departments, enabling more informed decision-making and resource allocation at the executive level."
+output = "Since rolling out the new ERP system, data flows much more smoothly between departments. Executives now have a clearer picture when making decisions about where to allocate resources."
