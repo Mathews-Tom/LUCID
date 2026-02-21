@@ -333,3 +333,97 @@ def models_cmd(
             elif status.source == "ollama":
                 downloader.pull_ollama_model(status.name)
             console.print(f"  Done: {status.name}")
+
+
+@main.command()
+@click.option(
+    "--profile",
+    "setup_profile",
+    type=click.Choice(["fast", "balanced", "quality"]),
+    default="balanced",
+    help="Quality profile to set up models for.",
+)
+@click.pass_context
+def setup(ctx: click.Context, setup_profile: str) -> None:
+    """First-run setup: check Ollama, download required models."""
+    import shutil
+
+    from rich.table import Table
+
+    from lucid.models.download import ModelDownloader
+
+    obj = ctx.obj
+    config: LUCIDConfig = obj["config"]
+    if setup_profile != config.general.profile:
+        config = load_config(profile=setup_profile)
+    console = Console(quiet=obj.get("quiet", False))
+
+    # Step 1: Check Ollama binary
+    console.print("\n[bold]Step 1:[/bold] Checking Ollama installation...")
+    ollama_path = shutil.which("ollama")
+    if ollama_path is None:
+        console.print("[red]Ollama not found.[/red]")
+        console.print("Install Ollama from: https://ollama.ai/download")
+        ctx.exit(1)
+        return
+    console.print(f"  Ollama found: {ollama_path}")
+
+    # Step 2: Check Ollama server
+    console.print("\n[bold]Step 2:[/bold] Checking Ollama server...")
+    downloader = ModelDownloader(config)
+    if not downloader.check_ollama():
+        console.print("[red]Ollama server not reachable.[/red]")
+        console.print("Start Ollama with: ollama serve")
+        ctx.exit(1)
+        return
+    console.print("  Ollama server is running.")
+
+    # Step 3: Check/pull Ollama model
+    ollama_model: str = getattr(config.ollama.models, setup_profile)
+    console.print(f"\n[bold]Step 3:[/bold] Checking Ollama model ({ollama_model})...")
+    if downloader.check_ollama_model(ollama_model):
+        console.print(f"  Model {ollama_model} is available.")
+    else:
+        console.print(f"  Pulling model {ollama_model}...")
+        downloader.pull_ollama_model(ollama_model)
+        console.print(f"  Model {ollama_model} pulled successfully.")
+
+    # Step 4: Download HuggingFace models
+    hf_models = [
+        config.detection.roberta_model,
+        config.evaluator.embedding_model,
+        config.evaluator.nli_model,
+        config.evaluator.bertscore_model,
+    ]
+    console.print("\n[bold]Step 4:[/bold] Checking HuggingFace models...")
+    for model_id in hf_models:
+        if downloader._check_huggingface_cache(model_id):
+            console.print(f"  {model_id}: cached")
+        else:
+            console.print(f"  Downloading {model_id}...")
+            downloader.download_huggingface(model_id)
+            console.print(f"  {model_id}: downloaded")
+
+    # Step 5: Health check
+    console.print("\n[bold]Step 5:[/bold] Running health check...")
+    statuses = downloader.check_all()
+
+    table = Table(title="Model Status", show_header=True)
+    table.add_column("Model", style="cyan")
+    table.add_column("Source", style="blue")
+    table.add_column("Available", style="green")
+
+    all_available = True
+    for status in statuses:
+        available_str = "Yes" if status.available else "[red]No[/red]"
+        if not status.available:
+            all_available = False
+        table.add_row(status.name, status.source, available_str)
+
+    console.print(table)
+
+    if all_available:
+        console.print("\n[bold green]Setup complete.[/bold green] All models are available.")
+    else:
+        console.print("\n[bold yellow]Setup incomplete.[/bold yellow] Some models are missing.")
+        ctx.exit(1)
