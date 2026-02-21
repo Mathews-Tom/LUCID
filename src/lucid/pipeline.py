@@ -10,9 +10,11 @@ from typing import TYPE_CHECKING, Any
 
 from lucid.checkpoint import CheckpointManager
 from lucid.models.manager import ModelManager
-from lucid.models.results import DocumentResult
+from lucid.models.results import DetectionResult, DocumentResult
 from lucid.parser import detect_format, get_adapter
 from lucid.parser.chunk import ProseChunk
+from lucid.parser.merge import merge_prose_for_detection
+from lucid.detector.statistical import MIN_WORDS_THRESHOLD
 from lucid.progress import PipelineEvent
 from lucid.reconstructor import validate_latex, validate_markdown
 
@@ -103,26 +105,54 @@ class LUCIDPipeline:
             doc_result.chunks = adapter.parse(content)
 
         prose_chunks = [c for c in doc_result.chunks if isinstance(c, ProseChunk)]
-        total_prose = len(prose_chunks)
 
-        # DETECTING
+        # DETECTING (with merge for fragmented prose)
         model_mgr = ModelManager(self._config)
         model_mgr.initialize_detector()
 
-        for i, chunk in enumerate(prose_chunks):
-            if chunk.id in completed_ids["detection"]:
+        detection_groups = merge_prose_for_detection(
+            doc_result.chunks, MIN_WORDS_THRESHOLD
+        )
+
+        for i, (merged_text, constituent_chunks) in enumerate(detection_groups):
+            constituent_ids = [c.id for c in constituent_chunks]
+            if all(cid in completed_ids["detection"] for cid in constituent_ids):
                 continue
+
             self._emit(
                 progress_callback,
                 PipelineState.DETECTING,
-                chunk.id,
+                constituent_chunks[0].id,
                 i,
-                total_prose,
-                f"Detecting chunk {chunk.id[:8]}",
+                len(detection_groups),
+                f"Detecting chunk {constituent_chunks[0].id[:8]}",
             )
-            result = model_mgr.detector.detect(chunk)
-            doc_result.detections.append(result)
-            completed_ids["detection"].append(chunk.id)
+
+            # Build a temporary ProseChunk with merged text for detection
+            temp_chunk = ProseChunk(
+                text=merged_text,
+                start_pos=constituent_chunks[0].start_pos,
+                end_pos=constituent_chunks[-1].end_pos,
+            )
+            temp_chunk.protected_text = merged_text
+
+            result = model_mgr.detector.detect(temp_chunk)
+
+            # Fan out the detection result to all constituent chunks
+            for constituent in constituent_chunks:
+                doc_result.detections.append(
+                    DetectionResult(
+                        chunk_id=constituent.id,
+                        ensemble_score=result.ensemble_score,
+                        classification=result.classification,
+                        roberta_score=result.roberta_score,
+                        statistical_score=result.statistical_score,
+                        binoculars_score=result.binoculars_score,
+                        feature_details=result.feature_details,
+                    )
+                )
+                completed_ids["detection"].append(constituent.id)
+
             if checkpoint_mgr is not None:
                 checkpoint_mgr.save(
                     doc_result,
@@ -143,6 +173,7 @@ class LUCIDPipeline:
 
         # HUMANIZING + EVALUATING
         if target_chunks:
+            model_mgr.release_detection_models()
             model_mgr.initialize_humanizer()
             model_mgr.initialize_evaluator()
 
@@ -281,17 +312,41 @@ class LUCIDPipeline:
         model_mgr = ModelManager(self._config)
         model_mgr.initialize_detector()
 
-        for i, chunk in enumerate(prose_chunks):
+        detection_groups = merge_prose_for_detection(
+            doc_result.chunks, MIN_WORDS_THRESHOLD
+        )
+
+        for i, (merged_text, constituent_chunks) in enumerate(detection_groups):
             self._emit(
                 progress_callback,
                 PipelineState.DETECTING,
-                chunk.id,
+                constituent_chunks[0].id,
                 i,
-                total_prose,
-                f"Detecting chunk {chunk.id[:8]}",
+                len(detection_groups),
+                f"Detecting chunk {constituent_chunks[0].id[:8]}",
             )
-            result = model_mgr.detector.detect(chunk)
-            doc_result.detections.append(result)
+
+            temp_chunk = ProseChunk(
+                text=merged_text,
+                start_pos=constituent_chunks[0].start_pos,
+                end_pos=constituent_chunks[-1].end_pos,
+            )
+            temp_chunk.protected_text = merged_text
+
+            result = model_mgr.detector.detect(temp_chunk)
+
+            for constituent in constituent_chunks:
+                doc_result.detections.append(
+                    DetectionResult(
+                        chunk_id=constituent.id,
+                        ensemble_score=result.ensemble_score,
+                        classification=result.classification,
+                        roberta_score=result.roberta_score,
+                        statistical_score=result.statistical_score,
+                        binoculars_score=result.binoculars_score,
+                        feature_details=result.feature_details,
+                    )
+                )
 
         model_mgr.shutdown()
 
