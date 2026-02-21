@@ -73,6 +73,10 @@ class ProtectedText:
     term_placeholders: dict[str, str]
     math_placeholders: dict[str, str]
 
+    def all_placeholders(self) -> list[str]:
+        """Return sorted list of all placeholder keys (term + math)."""
+        return sorted([*self.term_placeholders, *self.math_placeholders])
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationResult:
