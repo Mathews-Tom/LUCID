@@ -9,6 +9,7 @@ Reference: Binoculars paper (ICML 2024).
 
 from __future__ import annotations
 
+import gc
 import logging
 import math
 import threading
@@ -169,8 +170,8 @@ class BinocularsDetector:
     def unload(self) -> None:
         """Explicitly release model memory.
 
-        Clears all model references and optionally flushes the CUDA cache
-        if a GPU was used during inference.
+        Clears all model references and flushes accelerator caches
+        (CUDA and MPS) before forcing garbage collection.
         """
         self._observer = None
         self._performer = None
@@ -181,8 +182,11 @@ class BinocularsDetector:
 
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
-        except ImportError:
+            if hasattr(torch, "backends") and hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+        except (ImportError, AttributeError):
             pass
+        gc.collect()
 
     @property
     def loaded(self) -> bool:

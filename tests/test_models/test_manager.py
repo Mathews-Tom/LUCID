@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -114,6 +115,65 @@ class TestEvaluatorProperty:
         """Property raises RuntimeError before initialize_evaluator()."""
         with pytest.raises(RuntimeError, match="Evaluator not initialized"):
             _ = manager.evaluator
+
+
+class TestReleaseDetectionModels:
+    """release_detection_models() unloads binoculars and checks memory."""
+
+    @patch("lucid.models.manager.psutil")
+    @patch("lucid.detector.base.LUCIDDetector")
+    def test_calls_unload_binoculars(
+        self,
+        mock_detector_cls: MagicMock,
+        mock_psutil: MagicMock,
+        manager: ModelManager,
+    ) -> None:
+        """Calls unload_binoculars on the detector."""
+        mock_psutil.virtual_memory.return_value.available = 8 * 1024**3
+        manager.initialize_detector()
+        manager.release_detection_models()
+        mock_detector_cls.return_value.unload_binoculars.assert_called_once()
+
+    @patch("lucid.models.manager.psutil")
+    def test_noop_without_detector(
+        self,
+        mock_psutil: MagicMock,
+        manager: ModelManager,
+    ) -> None:
+        """No error when detector not initialized."""
+        mock_psutil.virtual_memory.return_value.available = 8 * 1024**3
+        manager.release_detection_models()  # Should not raise
+
+    @patch("lucid.models.manager.psutil")
+    @patch("lucid.detector.base.LUCIDDetector")
+    def test_low_memory_warning(
+        self,
+        mock_detector_cls: MagicMock,
+        mock_psutil: MagicMock,
+        manager: ModelManager,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """Logs warning when available memory < 4GB."""
+        mock_psutil.virtual_memory.return_value.available = 2 * 1024**3  # 2GB
+        manager.initialize_detector()
+        with caplog.at_level(logging.WARNING):
+            manager.release_detection_models()
+        assert "Low memory" in caplog.text
+
+
+class TestShutdownCallsUnload:
+    """shutdown() calls unload_binoculars before clearing refs."""
+
+    @patch("lucid.detector.base.LUCIDDetector")
+    def test_shutdown_unloads_binoculars(
+        self,
+        mock_detector_cls: MagicMock,
+        manager: ModelManager,
+    ) -> None:
+        """shutdown() calls unload_binoculars before nulling."""
+        manager.initialize_detector()
+        manager.shutdown()
+        mock_detector_cls.return_value.unload_binoculars.assert_called_once()
 
 
 class TestShutdown:

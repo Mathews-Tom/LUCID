@@ -141,6 +141,11 @@ class LUCIDDetector:
             return t.human_max < partial < t.ai_min
         return False
 
+    def unload_binoculars(self) -> None:
+        """Explicitly release Binoculars model memory."""
+        if self._binoculars is not None:
+            self._binoculars.unload()
+
     def detect_batch(self, chunks: list[ProseChunk]) -> list[DetectionResult]:
         """Detect AI content in multiple chunks, preserving input order.
 
