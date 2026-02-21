@@ -115,7 +115,7 @@ class TestPlaceholderRestoration:
         result = reconstruct_markdown(content, chunks)
         assert "formula" in result
         # Original math expression restored (not placeholder token)
-        assert "\u27e8MATH_" not in result
+        assert "[MATH_" not in result
 
     def test_placeholder_restore_yields_identity_skips(
         self, adapter: MarkdownDocumentAdapter

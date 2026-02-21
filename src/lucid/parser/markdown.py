@@ -242,7 +242,7 @@ class MarkdownDocumentAdapter:
                 for child in t.children:
                     if child.type == "math_inline" or child.type == "math_inline_double":
                         self._math_counter += 1
-                        ph = f"\u27e8MATH_{self._math_counter:03d}\u27e9"
+                        ph = f"[MATH_{self._math_counter:03d}]"
                         math_placeholders[ph] = child.markup + child.content + child.markup
                         text_parts.append(ph)
                     elif child.type == "text":

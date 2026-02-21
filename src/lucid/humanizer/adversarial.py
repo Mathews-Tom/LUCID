@@ -69,7 +69,13 @@ async def adversarial_humanize(
     for i in range(config.adversarial_iterations):
         strategy = select_strategy(i)
 
-        prompt = prompt_builder.build(protected.text, strategy, domain, profile)
+        prompt = prompt_builder.build(
+            protected.text,
+            strategy,
+            domain,
+            profile,
+            placeholders=protected.all_placeholders(),
+        )
 
         try:
             result = await client.generate(prompt, model, options=options)

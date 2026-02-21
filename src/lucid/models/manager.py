@@ -10,6 +10,8 @@ import gc
 import logging
 from typing import TYPE_CHECKING
 
+import psutil
+
 from lucid.config import LUCIDConfig
 
 if TYPE_CHECKING:
@@ -105,11 +107,35 @@ class ModelManager:
         return self._evaluator
 
     # ------------------------------------------------------------------
+    # Memory management
+    # ------------------------------------------------------------------
+
+    def release_detection_models(self) -> None:
+        """Unload heavy detection models to free memory for humanization.
+
+        Call between detection and humanization phases.
+        Logs a warning if available memory is below 4GB after release.
+        """
+        if self._detector is not None:
+            self._detector.unload_binoculars()
+        gc.collect()
+
+        available_gb = psutil.virtual_memory().available / (1024**3)
+        if available_gb < 4.0:
+            logger.warning(
+                "Low memory after detector release: %.1fGB available. "
+                "Humanization may be slow or fail.",
+                available_gb,
+            )
+
+    # ------------------------------------------------------------------
     # Teardown
     # ------------------------------------------------------------------
 
     def shutdown(self) -> None:
         """Release all component references and collect garbage."""
+        if self._detector is not None:
+            self._detector.unload_binoculars()
         self._detector = None
         self._humanizer = None
         self._evaluator = None

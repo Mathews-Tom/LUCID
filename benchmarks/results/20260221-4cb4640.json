@@ -1,0 +1,85 @@
+{
+  "metadata": {
+    "lucid_version": "0.1.0",
+    "timestamp": "2026-02-21T16:54:07.658955+00:00",
+    "git_commit": "4cb4640",
+    "profile": "balanced",
+    "real_models": false,
+    "platform": "Darwin arm64"
+  },
+  "detection_accuracy": {
+    "thresholds": [
+      0.3,
+      0.5,
+      0.65,
+      0.8
+    ],
+    "tpr": [
+      1.0,
+      0.8,
+      0.8,
+      0.4
+    ],
+    "fpr": [
+      0.2,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "corpus_size": {
+      "ai": 5,
+      "human": 5
+    },
+    "tier_activation": {
+      "fast": {
+        "roberta": true,
+        "statistical": false,
+        "binoculars": false
+      },
+      "balanced": {
+        "roberta": true,
+        "statistical": true,
+        "binoculars": false
+      },
+      "quality": {
+        "roberta": true,
+        "statistical": true,
+        "binoculars": true
+      }
+    }
+  },
+  "evasion": {
+    "single_pass_evasion_rate": 0.571,
+    "adversarial_evasion_rate": 0.857,
+    "mean_iterations": 3.3,
+    "strategy_distribution": {
+      "restructure": 2,
+      "standard": 2,
+      "voice_shift": 1,
+      "vocabulary": 1,
+      "reorder": 1
+    }
+  },
+  "semantic_preservation": {
+    "embedding_similarity": {
+      "mean": 0.87,
+      "min": 0.71,
+      "max": 0.95
+    },
+    "bertscore_f1": {
+      "mean": 0.885,
+      "min": 0.78,
+      "max": 0.94
+    },
+    "pass_rate": 0.833,
+    "nli_distribution": {
+      "entailment": 5,
+      "neutral": 1,
+      "contradiction": 0
+    }
+  },
+  "latency_ms": {
+    "pipeline_full_doc": 2.5,
+    "note": "CI mode with mocked models - orchestration overhead only"
+  }
+}

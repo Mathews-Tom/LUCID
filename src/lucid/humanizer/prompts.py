@@ -30,14 +30,16 @@ _SYSTEM_PROMPT = (
 
 _RULES = (
     "RULES:\n"
-    "- Preserve all terms marked with \u27e8TERM_NNN\u27e9 exactly as-is (never modify)\n"
-    "- Preserve all mathematical placeholders \u27e8MATH_NNN\u27e9 exactly as-is\n"
+    "- Preserve all terms marked with [TERM_NNN] exactly as-is (never modify)\n"
+    "- Preserve all mathematical placeholders [MATH_NNN] exactly as-is\n"
     "- Do NOT add new information or remove existing claims\n"
     "- Do NOT introduce self-contradictions\n"
     "- Do NOT significantly reorder paragraph structure (preserve logical flow)\n"
     "- Maintain the same level of technical precision as the original\n"
     "- Return only the rewritten paragraph; no commentary or explanation"
 )
+
+_PLACEHOLDER_ENUMERATION = "REQUIRED TOKENS (copy verbatim into output): {tokens}\n"
 
 _PROFILE_EXAMPLE_COUNTS: dict[str, int] = {
     "fast": 0,
@@ -87,6 +89,7 @@ class PromptBuilder:
         strategy: Strategy,
         domain: str,
         profile: str,
+        placeholders: list[str] | None = None,
     ) -> str:
         """Assemble a complete prompt for Ollama generation.
 
@@ -96,6 +99,9 @@ class PromptBuilder:
             domain: Content domain (``"stem"``, ``"humanities"``, ``"business"``,
                 ``"general"``).
             profile: Quality profile (``"fast"``, ``"balanced"``, ``"quality"``).
+            placeholders: Explicit list of placeholder tokens to enumerate
+                in the prompt. When non-empty, a REQUIRED TOKENS line is
+                prepended before the INPUT section.
 
         Returns:
             Complete prompt string ready for ``OllamaClient.generate()``.
@@ -118,6 +124,11 @@ class PromptBuilder:
                 parts.append(f"\nExample {i}:")
                 parts.append(f"INPUT: {ex.input}")
                 parts.append(f"OUTPUT: {ex.output}")
+
+        # Placeholder enumeration
+        if placeholders:
+            parts.append("")
+            parts.append(_PLACEHOLDER_ENUMERATION.format(tokens=", ".join(placeholders)))
 
         # Input text
         parts.append("")

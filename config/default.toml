@@ -36,7 +36,7 @@ ambiguity_triggers_binoculars = true
 
 [humanizer]
 max_retries = 3
-adversarial_iterations = 5
+adversarial_iterations = 8
 adversarial_target_score = 0.25
 
 [humanizer.temperature]

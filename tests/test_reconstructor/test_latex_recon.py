@@ -86,17 +86,17 @@ class TestPlaceholderRestoration:
 
     def test_restore_math_placeholders(self) -> None:
         """Math placeholders restored to original expressions."""
-        text = "The value \u27e8MATH_001\u27e9 is important."
-        placeholders = {"\u27e8MATH_001\u27e9": "$x = 42$"}
+        text = "The value [MATH_001] is important."
+        placeholders = {"[MATH_001]": "$x = 42$"}
         result = restore_placeholders(text, placeholders)
         assert result == "The value $x = 42$ is important."
 
     def test_restore_multiple_placeholders(self) -> None:
         """Multiple placeholders restored correctly."""
-        text = "\u27e8MATH_001\u27e9 and \u27e8MATH_002\u27e9"
+        text = "[MATH_001] and [MATH_002]"
         placeholders = {
-            "\u27e8MATH_001\u27e9": "$a$",
-            "\u27e8MATH_002\u27e9": "$b$",
+            "[MATH_001]": "$a$",
+            "[MATH_002]": "$b$",
         }
         result = restore_placeholders(text, placeholders)
         assert result == "$a$ and $b$"
