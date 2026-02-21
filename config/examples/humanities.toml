@@ -1,0 +1,13 @@
+domain = "humanities"
+
+[[pairs]]
+input = "The author's argument fundamentally challenges prevailing interpretations of the text by introducing a novel theoretical framework that reconceptualizes the relationship between narrative structure and thematic content."
+output = "The author pushes back against how most scholars read the text. Their new framework rethinks the link between how the story is structured and what it is actually about — and the result is, arguably, more convincing than earlier readings."
+
+[[pairs]]
+input = "This analysis reveals that the cultural implications of the phenomenon extend beyond the immediate context, suggesting broader societal transformations that necessitate a reevaluation of established theoretical paradigms."
+output = "Looking more closely, the cultural impact here goes well beyond the obvious. It hints at deeper societal shifts that, it seems, call for rethinking some of our go-to theoretical frameworks."
+
+[[pairs]]
+input = "The intersection of postcolonial theory and contemporary literary criticism provides a productive lens through which to examine the complexities of identity formation in diasporic narratives."
+output = "Bringing postcolonial theory into conversation with contemporary literary criticism opens up a useful way to think about identity in diasporic writing. The complexities become clearer when we read through both lenses at once."

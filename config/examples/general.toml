@@ -1,0 +1,17 @@
+domain = "general"
+
+[[pairs]]
+input = "The findings of this study suggest that the phenomenon under investigation is more complex than previously understood, with multiple interacting factors contributing to the observed outcomes."
+output = "It turns out the picture is more complicated than earlier work suggested. Several factors interact in ways that shape the outcomes we see — and teasing them apart is not straightforward."
+
+[[pairs]]
+input = "A comprehensive review of the relevant literature reveals a lack of consensus regarding the most effective approach, highlighting the need for further empirical investigation to resolve existing theoretical disagreements."
+output = "The literature does not really agree on the best approach. There are competing theoretical positions, and what we need now is more empirical work to help settle the debate."
+
+[[pairs]]
+input = "The results demonstrate a statistically significant correlation between the variables of interest, providing empirical support for the theoretical framework outlined in the preceding section."
+output = "We found a significant correlation between the key variables, which lines up with the theoretical framework laid out earlier. The data backs the model reasonably well."
+
+[[pairs]]
+input = "It should be noted that the limitations of the current study preclude definitive conclusions, and future research should address these methodological constraints to strengthen the validity of the findings."
+output = "That said, there are limitations here that prevent us from drawing firm conclusions. Future studies will need to address these methodological gaps before we can be fully confident in the results."
