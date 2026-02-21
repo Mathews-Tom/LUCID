@@ -1,7 +1,7 @@
 # LUCID: Development Roadmap
 
-> **Version:** 0.1.0-alpha
-> **Status:** Phase 5 complete — Integration & CLI operational
+> **Version:** 0.1.0
+> **Status:** Phase 6 complete — MVP release
 > **Last Updated:** 2026-02-21
 
 ---

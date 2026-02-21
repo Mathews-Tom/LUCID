@@ -1,0 +1,45 @@
+site_name: LUCID Documentation
+site_description: AI content detection and humanization engine
+site_url: https://aetherforge.github.io/lucid/
+
+theme:
+  name: material
+  palette:
+    scheme: slate
+    primary: blue
+    accent: cyan
+  features:
+    - navigation.sections
+    - navigation.expand
+    - content.code.copy
+
+plugins:
+  - search
+  - mkdocstrings:
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_symbol_type_heading: true
+            members_order: source
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - API Reference:
+    - Pipeline: api/pipeline.md
+    - Configuration: api/config.md
+    - Output: api/output.md
+    - Models: api/models.md
+  - Responsible Use: responsible-use.md
+  - Benchmarks: benchmarks/README.md

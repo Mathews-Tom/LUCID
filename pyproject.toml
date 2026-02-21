@@ -7,7 +7,7 @@ name = "lucid-ai"
 version = "0.1.0"
 description = "Offline-first AI content detection and humanization engine for LaTeX/Markdown documents"
 readme = "README.md"
-license = "MIT"
+license = {text = "MIT"}
 requires-python = ">=3.12"
 authors = [{ name = "Tom" }]
 keywords = ["ai-detection", "humanization", "latex", "markdown", "ollama"]
@@ -18,6 +18,8 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Text Processing :: Linguistic",
     "Typing :: Typed",
+    "Operating System :: OS Independent",
+    "Environment :: Console",
 ]
 dependencies = [
     "httpx>=0.27.0",
@@ -49,9 +51,13 @@ dev = [
 detection-full = [
     "optimum[onnxruntime]>=1.19.0",
 ]
+web = ["gradio>=4.0.0"]
+docs = ["mkdocs>=1.6.0", "mkdocs-material>=9.5.0", "mkdocstrings[python]>=0.27.0"]
+bench = ["pytest-benchmark>=4.0.0"]
 
 [project.scripts]
 lucid = "lucid.cli:main"
+lucid-web = "lucid.web:main"
 
 [project.urls]
 Homepage = "https://github.com/AetherForge/lucid"
@@ -104,6 +110,7 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py", "bench_*.py"]
 asyncio_mode = "auto"
 addopts = [
     "--cov=lucid",
@@ -116,6 +123,7 @@ addopts = [
 markers = [
     "integration: marks tests requiring model downloads or external services",
     "slow: marks tests that take >5s",
+    "benchmark: marks benchmark tests",
 ]
 
 [tool.coverage.run]
@@ -123,6 +131,7 @@ source = ["src/lucid"]
 omit = [
     "src/lucid/cli.py",
     "src/lucid/reconstructor/*",
+    "src/lucid/web.py",
 ]
 
 [tool.coverage.report]

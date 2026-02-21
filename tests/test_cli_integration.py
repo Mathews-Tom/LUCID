@@ -228,3 +228,85 @@ class TestBatchMode:
         assert result.exit_code == 0
         # Should process 2 files (a.md and b.txt)
         assert mock_pipeline.run_detect_only.call_count == 2
+
+
+class TestSetupCommand:
+    """setup subcommand."""
+
+    @patch("lucid.models.download.ModelDownloader")
+    @patch("shutil.which", return_value="/usr/local/bin/ollama")
+    def test_setup_all_available(
+        self,
+        mock_which: MagicMock,
+        mock_downloader_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from lucid.models.download import ModelStatus
+
+        mock_dl = mock_downloader_cls.return_value
+        mock_dl.check_ollama.return_value = True
+        mock_dl.check_ollama_model.return_value = True
+        mock_dl._check_huggingface_cache.return_value = True
+        mock_dl.check_all.return_value = [
+            ModelStatus(name="roberta-base", source="huggingface", available=True),
+            ModelStatus(name="qwen2.5:7b", source="ollama", available=True),
+        ]
+
+        result = runner.invoke(main, ["setup"])
+
+        assert result.exit_code == 0
+        assert "Setup complete" in result.output
+
+    @patch("lucid.models.download.ModelDownloader")
+    @patch("shutil.which", return_value=None)
+    def test_setup_ollama_not_installed(
+        self,
+        mock_which: MagicMock,
+        mock_downloader_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        result = runner.invoke(main, ["setup"])
+
+        assert result.exit_code != 0
+        assert "Ollama not found" in result.output
+
+    @patch("lucid.models.download.ModelDownloader")
+    @patch("shutil.which", return_value="/usr/local/bin/ollama")
+    def test_setup_ollama_not_running(
+        self,
+        mock_which: MagicMock,
+        mock_downloader_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        mock_dl = mock_downloader_cls.return_value
+        mock_dl.check_ollama.return_value = False
+
+        result = runner.invoke(main, ["setup"])
+
+        assert result.exit_code != 0
+        assert "not reachable" in result.output
+
+    @patch("lucid.models.download.ModelDownloader")
+    @patch("shutil.which", return_value="/usr/local/bin/ollama")
+    def test_setup_downloads_missing(
+        self,
+        mock_which: MagicMock,
+        mock_downloader_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        from lucid.models.download import ModelStatus
+
+        mock_dl = mock_downloader_cls.return_value
+        mock_dl.check_ollama.return_value = True
+        mock_dl.check_ollama_model.return_value = False
+        mock_dl._check_huggingface_cache.return_value = False
+        mock_dl.check_all.return_value = [
+            ModelStatus(name="roberta-base", source="huggingface", available=True),
+            ModelStatus(name="qwen2.5:7b", source="ollama", available=True),
+        ]
+
+        result = runner.invoke(main, ["setup"])
+
+        assert result.exit_code == 0
+        mock_dl.pull_ollama_model.assert_called_once()
+        assert mock_dl.download_huggingface.call_count == 4

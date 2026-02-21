@@ -32,6 +32,16 @@ uv sync
 uv run lucid --version
 ```
 
+### First-Run Setup
+
+```bash
+# Guided setup — checks Ollama, downloads models
+uv run lucid setup
+
+# Setup for a specific profile
+uv run lucid setup --profile quality
+```
+
 ## Quick Start
 
 ```bash
@@ -76,6 +86,7 @@ Commands:
   pipeline   Full detect → humanize → validate pipeline
   config     View or modify configuration
   models     Check or download required models
+  setup      First-run setup: check Ollama, download models
 ```
 
 ### detect
@@ -107,6 +118,13 @@ lucid pipeline <INPUT> [OPTIONS]
   --checkpoint-dir PATH              Checkpoint directory
 ```
 
+### setup
+
+```bash
+lucid setup [OPTIONS]
+  --profile [fast|balanced|quality]   Profile to set up (default: balanced)
+```
+
 ## Configuration
 
 LUCID uses TOML configuration with three built-in profiles:
@@ -126,6 +144,39 @@ uv run lucid config --set detection.use_binoculars true
 ```
 
 Configuration files: `config/default.toml`, `config/profiles/`.
+
+### Model Recommendations
+
+| Profile | Default Model | Size | RAM Required | License |
+|---------|--------------|------|-------------|---------|
+| fast | phi3:3.8b | 2.4GB | 8GB | MIT |
+| balanced | qwen2.5:7b | 4.5GB | 12GB | Apache 2.0 |
+| quality | llama3.1:8b | 4.9GB | 16GB | Meta Community |
+
+### Profile Comparison
+
+| Feature | fast | balanced | quality |
+|---------|------|----------|---------|
+| Statistical detection | No | Yes | Yes |
+| Binoculars (Tier 3) | No | No | Yes |
+| Adversarial iterations | 1 | 3 | 5 |
+| LaTeX validation | No | Yes | Yes |
+| Embedding threshold | 0.75 | 0.80 | 0.85 |
+| BERTScore threshold | 0.82 | 0.88 | 0.90 |
+
+## Web UI
+
+LUCID includes an optional Gradio web interface for browser-based detection and humanization.
+
+```bash
+# Install web extras
+uv sync --extra web
+
+# Launch web UI
+uv run lucid-web
+```
+
+The web UI provides two tabs: **Detect** (upload and analyze documents) and **Full Pipeline** (detect, humanize, and download results).
 
 ## Architecture
 
@@ -165,6 +216,19 @@ src/lucid/
     └── results.py      # Result dataclasses
 ```
 
+## Benchmarks
+
+| Metric | Target |
+|--------|--------|
+| Detection TPR (AI text) | >85% at 5% FPR |
+| Evasion rate (single-pass) | >70% |
+| Evasion rate (adversarial) | >85% |
+| Semantic similarity | >0.85 embedding, >0.88 BERTScore |
+
+Run benchmarks: `uv run pytest tests/benchmarks/ -m benchmark -v`
+
+Full results: [docs/benchmarks/](docs/benchmarks/README.md)
+
 ## Development
 
 ```bash
@@ -183,10 +247,16 @@ uv run pytest -m ""
 # Lint
 uv run ruff check src/ tests/
 
+# Run example scripts
+uv run python examples/detect_latex.py tests/corpus/latex/simple.tex
+uv run python examples/full_pipeline.py tests/corpus/markdown/simple.md
+
 # Type check
 uv run mypy src/lucid/
 ```
 
 ## License
 
-MIT
+MIT — See [LICENSE](LICENSE) for details.
+
+See [RESPONSIBLE_USE.md](RESPONSIBLE_USE.md) for the ethical framework and responsible use policy.
