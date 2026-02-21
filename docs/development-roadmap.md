@@ -1,8 +1,8 @@
-# Spectra: Development Roadmap
+# LUCID: Development Roadmap
 
-> **Version:** 0.1.0-design
-> **Status:** Pre-development
-> **Last Updated:** 2026-02-20
+> **Version:** 0.1.0-alpha
+> **Status:** Phase 5 complete — Integration & CLI operational
+> **Last Updated:** 2026-02-21
 
 ---
 
@@ -14,7 +14,7 @@ The development is structured in 7 phases across approximately 14 weeks for a so
 
 ```mermaid
 gantt
-    title Spectra Development Roadmap — MVP (14 Weeks)
+    title LUCID Development Roadmap — MVP (14 Weeks)
     dateFormat  YYYY-MM-DD
     axisFormat  %b %d
 
@@ -94,18 +94,18 @@ Stand up the project skeleton with CI, core abstractions, and external integrati
 
 ### 2.2 Tasks
 
-| Task                                                                                                                                           | Effort | Deliverable                                |
-| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------------ |
-| Initialize repo with `pyproject.toml`, `uv` for dependency management                                                                          | 2h     | Buildable project                          |
-| Set up GitHub Actions CI: lint (ruff), type check (mypy), test (pytest)                                                                        | 3h     | Green CI pipeline                          |
-| Define core data models: `Chunk`, `ProseChunk`, `StructuralChunk`, `DetectionResult`, `ParaphraseResult`, `EvaluationResult`, `DocumentResult` | 4h     | `src/spectra/parser/chunk.py` + type stubs |
-| Define protocols: `DocumentAdapter`, `Detector`, `Humanizer`, `Evaluator`                                                                      | 3h     | Abstract base classes                      |
-| Implement Ollama client wrapper with health check, streaming, retry logic                                                                      | 6h     | `src/spectra/humanizer/ollama.py`          |
-| Write Ollama integration tests (requires Ollama running)                                                                                       | 3h     | `tests/test_humanizer/test_ollama.py`      |
-| Collect test corpus: 50 LaTeX papers from arXiv, 30 Markdown docs                                                                              | 4h     | `tests/corpus/` populated                  |
-| Generate AI text samples: 100 paragraphs from GPT-4 / Claude / Llama                                                                           | 3h     | `tests/corpus/ai_generated/`               |
-| Implement TOML config loading with profile merging                                                                                             | 4h     | `src/spectra/config.py`                    |
-| Create default config and profile configs                                                                                                      | 2h     | `config/` directory                        |
+| Task                                                                                                                                           | Effort | Deliverable                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------- |
+| Initialize repo with `pyproject.toml`, `uv` for dependency management                                                                          | 2h     | Buildable project                        |
+| Set up GitHub Actions CI: lint (ruff), type check (mypy), test (pytest)                                                                        | 3h     | Green CI pipeline                        |
+| Define core data models: `Chunk`, `ProseChunk`, `StructuralChunk`, `DetectionResult`, `ParaphraseResult`, `EvaluationResult`, `DocumentResult` | 4h     | `src/lucid/parser/chunk.py` + type stubs |
+| Define protocols: `DocumentAdapter`, `Detector`, `Humanizer`, `Evaluator`                                                                      | 3h     | Abstract base classes                    |
+| Implement Ollama client wrapper with health check, streaming, retry logic                                                                      | 6h     | `src/lucid/humanizer/ollama.py`          |
+| Write Ollama integration tests (requires Ollama running)                                                                                       | 3h     | `tests/test_humanizer/test_ollama.py`    |
+| Collect test corpus: 50 LaTeX papers from arXiv, 30 Markdown docs                                                                              | 4h     | `tests/corpus/` populated                |
+| Generate AI text samples: 100 paragraphs from GPT-4 / Claude / Llama                                                                           | 3h     | `tests/corpus/ai_generated/`             |
+| Implement TOML config loading with profile merging                                                                                             | 4h     | `src/lucid/config.py`                    |
+| Create default config and profile configs                                                                                                      | 2h     | `config/` directory                      |
 
 ### 2.3 Entry Criteria
 
@@ -136,19 +136,19 @@ Build the LaTeX and Markdown parsers that correctly isolate prose from structura
 
 ### 3.2 Tasks
 
-| Task                                                                                                                                     | Effort | Deliverable                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------- | ------ | ---------------------------------------- |
-| **LaTeX parser core:** pylatexenc `latexwalker` integration, AST traversal, node type identification                                     | 12h    | `src/spectra/parser/latex.py`            |
-| **Node classification engine:** Implement the full classification table from the system design (prose vs. structural for all node types) | 8h     | Classification logic in `latex.py`       |
-| **Inline math extraction:** Detect `$...$`, `\(...\)` within prose nodes, replace with `⟨MATH_NNN⟩` placeholders, build restoration map  | 6h     | Math placeholder system                  |
-| **Position tracking:** Verify byte-accurate `pos`/`pos_end` from pylatexenc across 50 test documents                                     | 4h     | Position accuracy tests                  |
-| **LaTeX reconstructor:** Implement reverse-order position-based replacement algorithm                                                    | 4h     | `src/spectra/reconstructor/latex.py`     |
-| **Round-trip test suite:** Parse → reconstruct (without modification) must produce byte-identical output for all 50 test documents       | 6h     | Regression test suite                    |
-| **Markdown parser:** markdown-it-py token stream parsing, prose/structural classification, line-range tracking                           | 8h     | `src/spectra/parser/markdown.py`         |
-| **Markdown reconstructor:** Line-range-based replacement algorithm                                                                       | 3h     | `src/spectra/reconstructor/markdown.py`  |
-| **Plain text parser:** Paragraph segmentation, sentence splitting                                                                        | 3h     | `src/spectra/parser/plaintext.py`        |
-| **Edge case hardening:** Custom environments, nested structures, verbatim regions, multi-column layouts                                  | 8h     | Edge case test coverage                  |
-| **Compilation validator:** pdflatex compilation check, error parsing, Markdown render verification                                       | 4h     | `src/spectra/reconstructor/validator.py` |
+| Task                                                                                                                                     | Effort | Deliverable                            |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------- |
+| **LaTeX parser core:** pylatexenc `latexwalker` integration, AST traversal, node type identification                                     | 12h    | `src/lucid/parser/latex.py`            |
+| **Node classification engine:** Implement the full classification table from the system design (prose vs. structural for all node types) | 8h     | Classification logic in `latex.py`     |
+| **Inline math extraction:** Detect `$...$`, `\(...\)` within prose nodes, replace with `⟨MATH_NNN⟩` placeholders, build restoration map  | 6h     | Math placeholder system                |
+| **Position tracking:** Verify byte-accurate `pos`/`pos_end` from pylatexenc across 50 test documents                                     | 4h     | Position accuracy tests                |
+| **LaTeX reconstructor:** Implement reverse-order position-based replacement algorithm                                                    | 4h     | `src/lucid/reconstructor/latex.py`     |
+| **Round-trip test suite:** Parse → reconstruct (without modification) must produce byte-identical output for all 50 test documents       | 6h     | Regression test suite                  |
+| **Markdown parser:** markdown-it-py token stream parsing, prose/structural classification, line-range tracking                           | 8h     | `src/lucid/parser/markdown.py`         |
+| **Markdown reconstructor:** Line-range-based replacement algorithm                                                                       | 3h     | `src/lucid/reconstructor/markdown.py`  |
+| **Plain text parser:** Paragraph segmentation, sentence splitting                                                                        | 3h     | `src/lucid/parser/plaintext.py`        |
+| **Edge case hardening:** Custom environments, nested structures, verbatim regions, multi-column layouts                                  | 8h     | Edge case test coverage                |
+| **Compilation validator:** pdflatex compilation check, error parsing, Markdown render verification                                       | 4h     | `src/lucid/reconstructor/validator.py` |
 
 ### 3.3 Entry Criteria
 
@@ -198,10 +198,10 @@ Implement the two-tier detection pipeline (RoBERTa classifier + statistical feat
 | ------------------------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------------- |
 | **RoBERTa classifier setup:** Download model, export to ONNX, verify CoreML EP on Apple Silicon                                 | 6h     | ONNX model + inference wrapper               |
 | **Sliding window tokenization:** Handle chunks >512 tokens with overlapping windows                                             | 4h     | Window-based inference                       |
-| **Statistical feature extraction:** Implement perplexity proxy (GPT-2 small), burstiness, TTR, hapax ratio, POS trigram entropy | 10h    | `src/spectra/detector/statistical.py`        |
+| **Statistical feature extraction:** Implement perplexity proxy (GPT-2 small), burstiness, TTR, hapax ratio, POS trigram entropy | 10h    | `src/lucid/detector/statistical.py`          |
 | **Feature classifier training:** Train XGBoost on AI vs. human text features from test corpus                                   | 4h     | Trained classifier, saved model              |
-| **Ensemble scorer:** Configurable weight combination of Tier 1 + Tier 2 scores                                                  | 3h     | `src/spectra/detector/ensemble.py`           |
-| **Binoculars scaffolding:** Implement the interface and model loading (disabled by default)                                     | 4h     | `src/spectra/detector/binoculars.py`         |
+| **Ensemble scorer:** Configurable weight combination of Tier 1 + Tier 2 scores                                                  | 3h     | `src/lucid/detector/ensemble.py`             |
+| **Binoculars scaffolding:** Implement the interface and model loading (disabled by default)                                     | 4h     | `src/lucid/detector/binoculars.py`           |
 | **Detection benchmark:** Run against full test corpus, measure TPR/FPR at various thresholds, generate ROC curves               | 6h     | Benchmark results, threshold recommendations |
 | **Threshold calibration:** Determine optimal ensemble weights and decision boundaries                                           | 4h     | Updated default config                       |
 
@@ -236,17 +236,17 @@ Build the complete humanization chain: term protection → prompt construction �
 
 ### 5.2 Tasks
 
-| Task                                                                                                                                    | Effort | Deliverable                             |
-| --------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------- |
-| **Term protector:** spaCy NER integration, citation regex extraction, custom term list, placeholder injection/restoration               | 8h     | `src/spectra/humanizer/term_protect.py` |
-| **Prompt builder:** System prompt templates, few-shot example management, domain-adaptive example selection                             | 8h     | `src/spectra/humanizer/prompts.py`      |
-| **Few-shot example curation:** Create 3–5 pairs of AI→human-revised text per domain (STEM, humanities, general)                         | 6h     | `config/examples/`                      |
-| **Single-pass humanization:** Wire term protector → prompt builder → Ollama client → response parsing                                   | 6h     | Basic humanization working              |
-| **Placeholder validation:** Post-generation check for all `⟨TERM_NNN⟩` and `⟨MATH_NNN⟩` markers                                         | 3h     | Validation logic                        |
-| **Strategy system:** Implement 5 rotation strategies (standard, restructure, voice shift, vocabulary, reorder)                          | 6h     | `src/spectra/humanizer/strategies.py`   |
-| **Adversarial refinement loop:** Implement detect → score → retry cycle with strategy rotation, max iterations, best-candidate tracking | 10h    | `src/spectra/humanizer/adversarial.py`  |
-| **Humanization quality benchmarks:** Measure evasion rate, semantic preservation, latency across profiles and models                    | 8h     | Benchmark results                       |
-| **Prompt tuning:** Iterate on prompts based on benchmark results, adjust temperature/sampling per profile                               | 6h     | Optimized prompt templates              |
+| Task                                                                                                                                    | Effort | Deliverable                           |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------- |
+| **Term protector:** spaCy NER integration, citation regex extraction, custom term list, placeholder injection/restoration               | 8h     | `src/lucid/humanizer/term_protect.py` |
+| **Prompt builder:** System prompt templates, few-shot example management, domain-adaptive example selection                             | 8h     | `src/lucid/humanizer/prompts.py`      |
+| **Few-shot example curation:** Create 3–5 pairs of AI→human-revised text per domain (STEM, humanities, general)                         | 6h     | `config/examples/`                    |
+| **Single-pass humanization:** Wire term protector → prompt builder → Ollama client → response parsing                                   | 6h     | Basic humanization working            |
+| **Placeholder validation:** Post-generation check for all `⟨TERM_NNN⟩` and `⟨MATH_NNN⟩` markers                                         | 3h     | Validation logic                      |
+| **Strategy system:** Implement 5 rotation strategies (standard, restructure, voice shift, vocabulary, reorder)                          | 6h     | `src/lucid/humanizer/strategies.py`   |
+| **Adversarial refinement loop:** Implement detect → score → retry cycle with strategy rotation, max iterations, best-candidate tracking | 10h    | `src/lucid/humanizer/adversarial.py`  |
+| **Humanization quality benchmarks:** Measure evasion rate, semantic preservation, latency across profiles and models                    | 8h     | Benchmark results                     |
+| **Prompt tuning:** Iterate on prompts based on benchmark results, adjust temperature/sampling per profile                               | 6h     | Optimized prompt templates            |
 
 ### 5.3 Entry Criteria
 
@@ -288,15 +288,15 @@ Implement the three-stage semantic evaluation pipeline and calibrate thresholds 
 
 ### 6.2 Tasks
 
-| Task                                                                                                            | Effort | Deliverable                            |
-| --------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------------- |
-| **MiniLM embedding setup:** Load model, implement batch encoding, cosine similarity computation                 | 3h     | `src/spectra/evaluator/embedding.py`   |
-| **DeBERTa NLI setup:** Load model (ONNX), implement bidirectional entailment check                              | 5h     | `src/spectra/evaluator/nli.py`         |
-| **BERTScore integration:** Wrap `bert-score` library, configure rescaling, implement optional activation        | 4h     | `src/spectra/evaluator/bertscore.py`   |
-| **Tiered pipeline orchestration:** Stage 1 → Stage 2 → Stage 3 with early exit, configurable thresholds         | 4h     | `src/spectra/evaluator/pipeline.py`    |
-| **Term verification:** Post-evaluation placeholder and numerical value check                                    | 3h     | `src/spectra/evaluator/term_verify.py` |
-| **Threshold calibration:** Run against 200+ original↔paraphrase pairs, determine optimal thresholds per stage   | 8h     | Calibrated thresholds in config        |
-| **Edge case testing:** Technical text with jargon, mathematical descriptions, short paragraphs, long paragraphs | 4h     | Edge case test suite                   |
+| Task                                                                                                            | Effort | Deliverable                          |
+| --------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------------ |
+| **MiniLM embedding setup:** Load model, implement batch encoding, cosine similarity computation                 | 3h     | `src/lucid/evaluator/embedding.py`   |
+| **DeBERTa NLI setup:** Load model (ONNX), implement bidirectional entailment check                              | 5h     | `src/lucid/evaluator/nli.py`         |
+| **BERTScore integration:** Wrap `bert-score` library, configure rescaling, implement optional activation        | 4h     | `src/lucid/evaluator/bertscore.py`   |
+| **Tiered pipeline orchestration:** Stage 1 → Stage 2 → Stage 3 with early exit, configurable thresholds         | 4h     | `src/lucid/evaluator/pipeline.py`    |
+| **Term verification:** Post-evaluation placeholder and numerical value check                                    | 3h     | `src/lucid/evaluator/term_verify.py` |
+| **Threshold calibration:** Run against 200+ original↔paraphrase pairs, determine optimal thresholds per stage   | 8h     | Calibrated thresholds in config      |
+| **Edge case testing:** Technical text with jargon, mathematical descriptions, short paragraphs, long paragraphs | 4h     | Edge case test suite                 |
 
 ### 6.3 Entry Criteria
 
@@ -321,46 +321,46 @@ Wire all modules into a complete pipeline, build the CLI interface, and implemen
 
 ### 7.2 Tasks
 
-| Task                                                                                                            | Effort | Deliverable                      |
-| --------------------------------------------------------------------------------------------------------------- | ------ | -------------------------------- |
-| **Pipeline orchestrator:** Connect parser → detector → humanizer → evaluator → reconstructor with state machine | 10h    | `src/spectra/pipeline.py`        |
-| **Model lifecycle manager:** Load/unload models based on pipeline phase and memory availability                 | 6h     | `src/spectra/models/manager.py`  |
-| **First-run model downloader:** Auto-download ONNX models, prompt Ollama pull for LLM                           | 4h     | `src/spectra/models/download.py` |
-| **CLI implementation:** `spectra detect`, `spectra humanize`, `spectra pipeline`, `spectra config` subcommands  | 8h     | `src/spectra/cli.py`             |
-| **Progress reporting:** Rich terminal output with per-chunk progress, detection scores, humanization status     | 4h     | Progress display                 |
-| **Checkpoint & resume:** JSON checkpoint after each chunk, resume from interruption                             | 4h     | Checkpoint system                |
-| **Batch processing:** Process multiple files in a directory                                                     | 3h     | Batch mode in CLI                |
-| **Output formatting:** Generate detection report (JSON + human-readable), annotated document, quality summary   | 4h     | Report generation                |
-| **End-to-end integration tests:** Full pipeline on 10 LaTeX + 10 Markdown documents                             | 8h     | Integration test suite           |
+| Task                                                                                                            | Effort | Deliverable                    |
+| --------------------------------------------------------------------------------------------------------------- | ------ | ------------------------------ |
+| **Pipeline orchestrator:** Connect parser → detector → humanizer → evaluator → reconstructor with state machine | 10h    | `src/lucid/pipeline.py`        |
+| **Model lifecycle manager:** Load/unload models based on pipeline phase and memory availability                 | 6h     | `src/lucid/models/manager.py`  |
+| **First-run model downloader:** Auto-download ONNX models, prompt Ollama pull for LLM                           | 4h     | `src/lucid/models/download.py` |
+| **CLI implementation:** `lucid detect`, `lucid humanize`, `lucid pipeline`, `lucid config` subcommands          | 8h     | `src/lucid/cli.py`             |
+| **Progress reporting:** Rich terminal output with per-chunk progress, detection scores, humanization status     | 4h     | Progress display               |
+| **Checkpoint & resume:** JSON checkpoint after each chunk, resume from interruption                             | 4h     | Checkpoint system              |
+| **Batch processing:** Process multiple files in a directory                                                     | 3h     | Batch mode in CLI              |
+| **Output formatting:** Generate detection report (JSON + human-readable), annotated document, quality summary   | 4h     | Report generation              |
+| **End-to-end integration tests:** Full pipeline on 10 LaTeX + 10 Markdown documents                             | 8h     | Integration test suite         |
 
 ### 7.3 CLI Design
 
-```
-spectra — AI Content Detection & Humanization Engine
+```text
+LUCID — AI Content Detection & Humanization Engine
 
 COMMANDS:
-  spectra detect <input>           Detect AI-generated content
+  lucid detect <input>           Detect AI-generated content
     --profile <fast|balanced|quality>
     --output-format <json|text|annotated>
     --threshold <float>
 
-  spectra humanize <input>         Humanize AI-detected content
+  lucid humanize <input>         Humanize AI-detected content
     --profile <fast|balanced|quality>
     --output <path>
     --model <ollama-model-tag>
     --adversarial                  Enable adversarial refinement
 
-  spectra pipeline <input>         Full detect → humanize → validate pipeline
+  lucid pipeline <input>         Full detect → humanize → validate pipeline
     --profile <fast|balanced|quality>
     --output <path>
     --report <path>                Save detailed processing report
     --resume <checkpoint>          Resume from checkpoint
 
-  spectra config                   Show current configuration
+  lucid config                   Show current configuration
     --set <key> <value>            Set a configuration value
     --profile <name>               Show profile-specific config
 
-  spectra models                   List available and required models
+  lucid models                   List available and required models
     --download                     Download all required models
     --check                        Verify Ollama models are pulled
 
@@ -376,8 +376,8 @@ GLOBAL FLAGS:
 
 ### 7.5 Exit Criteria
 
-- `spectra pipeline sample.tex --profile balanced` produces a valid, humanized LaTeX document.
-- `spectra detect sample.md` produces a JSON report with per-paragraph scores.
+- `lucid pipeline sample.tex --profile balanced` produces a valid, humanized LaTeX document.
+- `lucid detect sample.md` produces a JSON report with per-paragraph scores.
 - Checkpoint/resume works across process restarts.
 - All integration tests pass.
 - Model downloader handles first-run setup without manual intervention.
@@ -392,23 +392,23 @@ Production-quality documentation, optional web UI, comprehensive benchmarks, and
 
 ### 8.2 Tasks
 
-| Task                                                                                                                       | Effort | Deliverable             |
-| -------------------------------------------------------------------------------------------------------------------------- | ------ | ----------------------- |
-| **Gradio web UI:** Upload document, select profile, view detection results, download humanized output                      | 10h    | `web/app.py`            |
-| **README.md:** Installation, quickstart, configuration guide, model recommendations, screenshots                           | 6h     | README                  |
-| **RESPONSIBLE_USE.md:** Dual-use policy, legitimate use cases, ethical guidelines, EU AI Act considerations                | 4h     | Responsible use doc     |
-| **API documentation:** Docstrings for all public interfaces, auto-generated with mkdocs                                    | 4h     | `docs/` site            |
-| **Benchmark suite:** Automated detection accuracy, evasion rate, semantic preservation, latency across profiles and models | 8h     | `tests/benchmarks/`     |
-| **Published benchmark results:** Tables and charts for README showing performance across detectors, models, document types | 4h     | Benchmark report        |
-| **PyPI packaging:** Build wheel, configure `pyproject.toml` entry points, test `pip install spectra-ai`                    | 3h     | PyPI release            |
-| **Example scripts:** Annotated examples for common workflows                                                               | 3h     | `examples/`             |
-| **First-run experience:** Guided setup for Ollama installation, model pulling, config initialization                       | 4h     | `spectra setup` command |
+| Task                                                                                                                       | Effort | Deliverable           |
+| -------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------- |
+| **Gradio web UI:** Upload document, select profile, view detection results, download humanized output                      | 10h    | `web/app.py`          |
+| **README.md:** Installation, quickstart, configuration guide, model recommendations, screenshots                           | 6h     | README                |
+| **RESPONSIBLE_USE.md:** Dual-use policy, legitimate use cases, ethical guidelines, EU AI Act considerations                | 4h     | Responsible use doc   |
+| **API documentation:** Docstrings for all public interfaces, auto-generated with mkdocs                                    | 4h     | `docs/` site          |
+| **Benchmark suite:** Automated detection accuracy, evasion rate, semantic preservation, latency across profiles and models | 8h     | `tests/benchmarks/`   |
+| **Published benchmark results:** Tables and charts for README showing performance across detectors, models, document types | 4h     | Benchmark report      |
+| **PyPI packaging:** Build wheel, configure `pyproject.toml` entry points, test `pip install lucid-ai`                      | 3h     | PyPI release          |
+| **Example scripts:** Annotated examples for common workflows                                                               | 3h     | `examples/`           |
+| **First-run experience:** Guided setup for Ollama installation, model pulling, config initialization                       | 4h     | `lucid setup` command |
 
 ### 8.3 Exit Criteria — MVP Release (v0.1.0)
 
-- `pip install spectra-ai` works on macOS (Apple Silicon) and Linux (x86-64).
-- `spectra setup` guides new users through Ollama installation and model pulling.
-- `spectra pipeline input.tex --profile balanced` produces valid output for >90% of test corpus.
+- `pip install lucid-ai` works on macOS (Apple Silicon) and Linux (x86-64).
+- `lucid setup` guides new users through Ollama installation and model pulling.
+- `lucid pipeline input.tex --profile balanced` produces valid output for >90% of test corpus.
 - README includes installation, quickstart, and at least one full worked example.
 - Benchmark results are published and reproducible.
 - RESPONSIBLE_USE.md is complete and prominently linked.
@@ -506,9 +506,9 @@ Track key architectural decisions and their rationale for future reference.
 
 The system is considered MVP-complete when a user can:
 
-1. Install via `pip install spectra-ai`
-2. Run `spectra setup` to configure Ollama and download models
-3. Run `spectra pipeline paper.tex --profile balanced` on an arXiv LaTeX paper
+1. Install via `pip install lucid-ai`
+2. Run `lucid setup` to configure Ollama and download models
+3. Run `lucid pipeline paper.tex --profile balanced` on an arXiv LaTeX paper
 4. Receive a humanized LaTeX file that compiles without errors
 5. Receive a JSON report showing per-paragraph detection scores (before and after)
 6. Receive semantic preservation scores confirming meaning fidelity
