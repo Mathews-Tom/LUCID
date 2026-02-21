@@ -75,8 +75,8 @@ class TestInlineMath:
         chunks = adapter.parse(content)
         prose = [c for c in chunks if isinstance(c, ProseChunk) and c.math_placeholders]
         ph = next(iter(prose[0].math_placeholders))
-        assert ph.startswith("\u27e8MATH_")
-        assert ph.endswith("\u27e9")
+        assert ph.startswith("[MATH_")
+        assert ph.endswith("]")
 
 
 class TestDisplayMath:

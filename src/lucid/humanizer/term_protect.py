@@ -19,12 +19,12 @@ if TYPE_CHECKING:
 # Placeholder constants
 # ---------------------------------------------------------------------------
 
-_OPEN = "\u27e8"   # ⟨  mathematical left angle bracket
-_CLOSE = "\u27e9"  # ⟩  mathematical right angle bracket
+_OPEN = "["
+_CLOSE = "]"
 
 # Match any existing placeholder (MATH or TERM)
 _PLACEHOLDER_RE = re.compile(
-    r"\u27e8(?:MATH|TERM)_(\d{3})\u27e9"
+    r"\[(?:MATH|TERM)_(\d{3})\]"
 )
 
 # ---------------------------------------------------------------------------
@@ -65,7 +65,7 @@ class ProtectedText:
 
     Attributes:
         text: Text with all placeholders substituted.
-        term_placeholders: Mapping of ⟨TERM_NNN⟩ → original term.
+        term_placeholders: Mapping of [TERM_NNN] → original term.
         math_placeholders: Pass-through from the source ProseChunk.
     """
 
@@ -229,7 +229,7 @@ class TermProtector:
         """Replace all placeholders in text with their original values.
 
         Args:
-            text: Text containing ⟨TERM_NNN⟩ and/or ⟨MATH_NNN⟩ placeholders.
+            text: Text containing [TERM_NNN] and/or [MATH_NNN] placeholders.
             term_placeholders: Mapping of term placeholder keys to originals.
             math_placeholders: Mapping of math placeholder keys to originals.
 

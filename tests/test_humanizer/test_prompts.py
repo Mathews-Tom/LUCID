@@ -81,8 +81,8 @@ class TestPromptStructure:
     def test_contains_rules(self, builder: PromptBuilder) -> None:
         prompt = builder.build("Test text.", Strategy.STANDARD, "stem", "balanced")
         assert "RULES:" in prompt
-        assert "\u27e8TERM_NNN\u27e9" in prompt
-        assert "\u27e8MATH_NNN\u27e9" in prompt
+        assert "[TERM_NNN]" in prompt
+        assert "[MATH_NNN]" in prompt
 
     def test_contains_input_and_output_markers(self, builder: PromptBuilder) -> None:
         prompt = builder.build("My protected text.", Strategy.STANDARD, "stem", "balanced")

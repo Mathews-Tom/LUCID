@@ -579,7 +579,7 @@ class LatexDocumentAdapter:
         for node in valid_nodes:
             if isinstance(node, LatexMathNode):
                 self._math_counter += 1
-                placeholder = f"\u27e8MATH_{self._math_counter:03d}\u27e9"
+                placeholder = f"[MATH_{self._math_counter:03d}]"
                 math_source = source[node.pos : node.pos + node.len]
                 math_by_pos[(node.pos, node.pos + node.len)] = placeholder
                 math_originals[placeholder] = math_source

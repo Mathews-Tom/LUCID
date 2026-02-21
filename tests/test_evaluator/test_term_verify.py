@@ -15,8 +15,8 @@ class TestTermVerifier:
 
     def test_all_placeholders_present_passes(self) -> None:
         """All placeholders preserved in paraphrase → pass."""
-        original = "The \u27e8TERM_000\u27e9 method achieves \u27e8MATH_001\u27e9 accuracy."
-        paraphrase = "The \u27e8TERM_000\u27e9 approach reaches \u27e8MATH_001\u27e9 accuracy."
+        original = "The [TERM_000] method achieves [MATH_001] accuracy."
+        paraphrase = "The [TERM_000] approach reaches [MATH_001] accuracy."
         result = self.verifier.verify(original, paraphrase)
         assert result.passed is True
         assert result.missing_placeholders == ()
@@ -25,21 +25,21 @@ class TestTermVerifier:
 
     def test_missing_placeholder_fails(self) -> None:
         """Dropped placeholder in paraphrase → fail."""
-        original = "Use \u27e8TERM_000\u27e9 and \u27e8TERM_001\u27e9 for analysis."
-        paraphrase = "Use \u27e8TERM_000\u27e9 for analysis."
+        original = "Use [TERM_000] and [TERM_001] for analysis."
+        paraphrase = "Use [TERM_000] for analysis."
         result = self.verifier.verify(original, paraphrase)
         assert result.passed is False
-        assert "\u27e8TERM_001\u27e9" in result.missing_placeholders
+        assert "[TERM_001]" in result.missing_placeholders
         assert result.reason is not None
         assert "missing placeholders" in result.reason
 
     def test_missing_math_placeholder_fails(self) -> None:
         """Dropped MATH placeholder → fail."""
-        original = "Score is \u27e8MATH_000\u27e9 on \u27e8MATH_001\u27e9 samples."
-        paraphrase = "Score is \u27e8MATH_000\u27e9 on many samples."
+        original = "Score is [MATH_000] on [MATH_001] samples."
+        paraphrase = "Score is [MATH_000] on many samples."
         result = self.verifier.verify(original, paraphrase)
         assert result.passed is False
-        assert "\u27e8MATH_001\u27e9" in result.missing_placeholders
+        assert "[MATH_001]" in result.missing_placeholders
 
     # -- Number tests -------------------------------------------------------
 
@@ -71,7 +71,7 @@ class TestTermVerifier:
 
     def test_combined_placeholder_and_number_failure(self) -> None:
         """Both placeholder and number missing → combined failure."""
-        original = "The \u27e8TERM_000\u27e9 scored 92% on 50 samples."
+        original = "The [TERM_000] scored 92% on 50 samples."
         paraphrase = "The approach scored well on samples."
         result = self.verifier.verify(original, paraphrase)
         assert result.passed is False

@@ -30,8 +30,8 @@ _SYSTEM_PROMPT = (
 
 _RULES = (
     "RULES:\n"
-    "- Preserve all terms marked with \u27e8TERM_NNN\u27e9 exactly as-is (never modify)\n"
-    "- Preserve all mathematical placeholders \u27e8MATH_NNN\u27e9 exactly as-is\n"
+    "- Preserve all terms marked with [TERM_NNN] exactly as-is (never modify)\n"
+    "- Preserve all mathematical placeholders [MATH_NNN] exactly as-is\n"
     "- Do NOT add new information or remove existing claims\n"
     "- Do NOT introduce self-contradictions\n"
     "- Do NOT significantly reorder paragraph structure (preserve logical flow)\n"

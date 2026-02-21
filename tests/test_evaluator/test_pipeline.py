@@ -82,9 +82,9 @@ class TestEvaluationPipeline:
         """Term verification failure → reject before embedding stage."""
         mock_tv_cls.return_value.verify.return_value = TermVerificationResult(
             passed=False,
-            missing_placeholders=("\u27e8TERM_000\u27e9",),
+            missing_placeholders=("[TERM_000]",),
             mismatched_numbers=(),
-            reason="missing placeholders: \u27e8TERM_000\u27e9",
+            reason="missing placeholders: [TERM_000]",
         )
 
         pipeline = EvaluationPipeline(self.config)
@@ -325,9 +325,9 @@ class TestEvaluationPipeline:
         """Term verification failure prevents all model-based stages from running."""
         mock_tv_cls.return_value.verify.return_value = TermVerificationResult(
             passed=False,
-            missing_placeholders=("\u27e8MATH_001\u27e9",),
+            missing_placeholders=("[MATH_001]",),
             mismatched_numbers=("42",),
-            reason="missing placeholders: \u27e8MATH_001\u27e9; missing numbers: 42",
+            reason="missing placeholders: [MATH_001]; missing numbers: 42",
         )
 
         pipeline = EvaluationPipeline(self.config)

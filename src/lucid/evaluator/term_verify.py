@@ -11,7 +11,7 @@ import re
 from dataclasses import dataclass
 
 # Reuse the same placeholder pattern as term_protect.py
-_PLACEHOLDER_RE = re.compile(r"\u27e8(?:MATH|TERM)_(\d{3})\u27e9")
+_PLACEHOLDER_RE = re.compile(r"\[(?:MATH|TERM)_(\d{3})\]")
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?%?")
 
 
