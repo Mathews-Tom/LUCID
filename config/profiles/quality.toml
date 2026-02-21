@@ -9,7 +9,7 @@ use_binoculars = true
 
 [humanizer]
 max_retries = 5
-adversarial_iterations = 5
+adversarial_iterations = 12
 
 [evaluator]
 embedding_threshold = 0.85

@@ -198,7 +198,7 @@ class TestLUCIDConfigDefaults:
     def test_humanizer_defaults(self) -> None:
         """Humanizer defaults match system-design.md."""
         config = LUCIDConfig()
-        assert config.humanizer.adversarial_iterations == 5
+        assert config.humanizer.adversarial_iterations == 8
         assert config.humanizer.adversarial_target_score == 0.25
 
     def test_temperature_profiles(self) -> None:
