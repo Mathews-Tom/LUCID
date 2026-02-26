@@ -123,7 +123,7 @@ All processing happens locally. The system never phones home, never sends text t
 
 All large language model inference for paraphrasing routes through the Ollama API (`localhost:11434`). This provides:
 
-- **Model agnosticism.** Users swap models by changing a config string (`qwen2.5:3b`, `llama3.1:8b`, `phi3:3.8b`).
+- **Model agnosticism.** Users swap models by changing a config string (`qwen2.5:3b`, `llama3.2:8b`, `phi3:3.8b`).
 - **Quantization handled externally.** Ollama manages GGUF quantization variants. The system doesn't need to handle model formats.
 - **Resource management delegated.** Ollama handles GPU offloading, memory mapping, and context window management.
 - **Ecosystem leverage.** Any model Ollama supports becomes available to Spectra without code changes.

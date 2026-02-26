@@ -151,7 +151,7 @@ Configuration files: `config/default.toml`, `config/profiles/`.
 |---------|--------------|------|-------------|---------|
 | fast | phi3:3.8b | 2.4GB | 8GB | MIT |
 | balanced | qwen2.5:7b | 4.5GB | 12GB | Apache 2.0 |
-| quality | llama3.1:8b | 4.9GB | 16GB | Meta Community |
+| quality | llama3.2:8b | 4.9GB | 16GB | Meta Community |
 
 ### Profile Comparison
 

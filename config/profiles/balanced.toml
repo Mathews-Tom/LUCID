@@ -2,4 +2,4 @@
 profile = "balanced"
 
 [humanizer]
-adversarial_iterations = 8
+adversarial_iterations = 5

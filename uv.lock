@@ -14,6 +14,24 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "accelerate"
+version = "1.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "psutil" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4a/8e/ac2a9566747a93f8be36ee08532eb0160558b07630a081a6056a9f89bf1d/accelerate-1.12.0.tar.gz", hash = "sha256:70988c352feb481887077d2ab845125024b2a137a5090d6d7a32b57d03a45df6", size = 398399 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9f/d2/c581486aa6c4fbd7394c23c47b83fa1a919d34194e16944241daf9e762dd/accelerate-1.12.0-py3-none-any.whl", hash = "sha256:3e2091cd341423207e2f084a6654b1efcd250dc326f2a37d6dde446e07cabb11", size = 380935 },
+]
+
+[[package]]
 name = "aiofiles"
 version = "24.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1168,6 +1186,7 @@ name = "lucid-ai"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "accelerate" },
     { name = "bert-score" },
     { name = "click" },
     { name = "httpx" },
@@ -1212,11 +1231,14 @@ web = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
     { name = "twine" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "accelerate", specifier = ">=1.12.0" },
     { name = "bert-score", specifier = ">=0.3.13" },
     { name = "click", specifier = ">=8.1.7" },
     { name = "gradio", marker = "extra == 'web'", specifier = ">=4.0.0" },
@@ -1249,7 +1271,11 @@ requires-dist = [
 provides-extras = ["dev", "detection-full", "web", "docs", "bench"]
 
 [package.metadata.requires-dev]
-dev = [{ name = "twine", specifier = ">=6.2.0" }]
+dev = [
+    { name = "pytest", specifier = ">=9.0.2" },
+    { name = "pytest-cov", specifier = ">=7.0.0" },
+    { name = "twine", specifier = ">=6.2.0" },
+]
 
 [[package]]
 name = "markdown"
