@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -13,6 +14,8 @@ if TYPE_CHECKING:
     from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
+
+_embedding_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,10 +37,12 @@ class EmbeddingSimilarity:
 
     def _load_model(self) -> SentenceTransformer:
         if self._model is None:
-            from sentence_transformers import SentenceTransformer
+            with _embedding_lock:
+                if self._model is None:
+                    from sentence_transformers import SentenceTransformer
 
-            logger.info("Loading embedding model: %s", self._model_name)
-            self._model = SentenceTransformer(self._model_name)
+                    logger.info("Loading embedding model: %s", self._model_name)
+                    self._model = SentenceTransformer(self._model_name)
         return self._model
 
     def compute(self, original: str, paraphrase: str) -> EmbeddingResult:

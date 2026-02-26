@@ -8,6 +8,7 @@ confirms semantic preservation; contradiction or neutrality flags meaning drift.
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
@@ -15,6 +16,8 @@ if TYPE_CHECKING:
     from transformers.pipelines.text_classification import TextClassificationPipeline
 
 logger = logging.getLogger(__name__)
+
+_nli_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,15 +57,17 @@ class NLIChecker:
     def pipeline(self) -> TextClassificationPipeline:
         """Return the cached pipeline, loading it on first access."""
         if self._pipeline is None:
-            logger.info("Loading NLI model: %s", self._model_name)
-            from transformers import pipeline as hf_pipeline
+            with _nli_lock:
+                if self._pipeline is None:
+                    logger.info("Loading NLI model: %s", self._model_name)
+                    from transformers import pipeline as hf_pipeline
 
-            self._pipeline = hf_pipeline(
-                "text-classification",
-                model=self._model_name,
-                top_k=None,
-            )
-            logger.info("NLI model loaded successfully")
+                    self._pipeline = hf_pipeline(
+                        "text-classification",
+                        model=self._model_name,
+                        top_k=None,
+                    )
+                    logger.info("NLI model loaded successfully")
         return self._pipeline
 
     def check(self, original: str, paraphrase: str) -> NLIResult:
