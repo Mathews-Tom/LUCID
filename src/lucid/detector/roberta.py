@@ -108,8 +108,8 @@ class RobertaDetector:
                 break
             start += _STRIDE_TOKENS
 
-        # Aggregate: max over windows (most suspicious window wins)
-        return max(window_scores)
+        # Aggregate: mean over windows (reduces single-window inflation)
+        return sum(window_scores) / len(window_scores)
 
 
 def _load_model(model_id: str) -> tuple[ort.InferenceSession, _AutoTokenizer]:

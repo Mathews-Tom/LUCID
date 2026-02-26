@@ -248,11 +248,11 @@ class TestRobertaDetectorSlidingWindow:
         )
         score = detector.detect_text("long text " * 200)
         assert detector._session.run.call_count == 2  # type: ignore[union-attr]
-        # Aggregation is max — should be close to the higher window score
-        assert score > 0.8
+        # Aggregation is mean — average of ~0.27 and ~0.95
+        assert 0.5 < score < 0.7
 
-    def test_sliding_window_aggregation_is_max(self) -> None:
-        """Aggregate score over windows must equal the maximum window score."""
+    def test_sliding_window_aggregation_is_mean(self) -> None:
+        """Aggregate score over windows must equal the mean window score."""
         # 1020 tokens: window1=0..509, window2=256..765, window3=512..1019
         long_ids = list(range(1020))
         # Window 2 has the highest AI probability
@@ -265,9 +265,12 @@ class TestRobertaDetectorSlidingWindow:
             ],
         )
         score = detector.detect_text("very long text " * 300)
-        # Max window was window 2 with logits [0, 5]
-        expected_max = _softmax([0.0, 5.0])[1]
-        assert abs(score - expected_max) < 1e-5
+        # Mean of three window scores
+        w1 = _softmax([3.0, 1.0])[1]
+        w2 = _softmax([0.0, 5.0])[1]
+        w3 = _softmax([2.0, 1.0])[1]
+        expected_mean = (w1 + w2 + w3) / 3
+        assert abs(score - expected_mean) < 1e-5
 
     def test_tokenization_failure_raises_detection_error(self) -> None:
         """Tokenizer exception during encode must raise DetectionError."""
