@@ -5,12 +5,13 @@ from __future__ import annotations
 import enum
 import logging
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from lucid.checkpoint import CheckpointManager
 from lucid.models.manager import ModelManager
-from lucid.models.results import DetectionResult, DocumentResult
+from lucid.models.results import DetectionResult, DocumentResult, ParaphraseResult
 from lucid.parser import detect_format, get_adapter
 from lucid.parser.chunk import ProseChunk
 from lucid.parser.merge import merge_prose_for_detection
@@ -49,9 +50,11 @@ class LUCIDPipeline:
         self,
         config: LUCIDConfig,
         checkpoint_dir: Path | None = None,
+        skip_eval: bool = False,
     ) -> None:
         self._config = config
         self._checkpoint_dir = checkpoint_dir
+        self._skip_eval = skip_eval
 
     def run(
         self,
@@ -114,60 +117,83 @@ class LUCIDPipeline:
             doc_result.chunks, MIN_WORDS_THRESHOLD
         )
 
+        # Filter groups that still need detection
+        pending_groups: list[tuple[int, str, list[ProseChunk]]] = []
         for i, (merged_text, constituent_chunks) in enumerate(detection_groups):
             constituent_ids = [c.id for c in constituent_chunks]
             if all(cid in completed_ids["detection"] for cid in constituent_ids):
                 continue
+            pending_groups.append((i, merged_text, constituent_chunks))
 
-            self._emit(
-                progress_callback,
-                PipelineState.DETECTING,
-                constituent_chunks[0].id,
-                i,
-                len(detection_groups),
-                f"Detecting chunk {constituent_chunks[0].id[:8]}",
-            )
+        self._emit(
+            progress_callback,
+            PipelineState.DETECTING,
+            None,
+            0,
+            len(detection_groups),
+            f"Detecting {len(pending_groups)} groups (parallel)",
+        )
 
-            # Build a temporary ProseChunk with merged text for detection
-            temp_chunk = ProseChunk(
-                text=merged_text,
-                start_pos=constituent_chunks[0].start_pos,
-                end_pos=constituent_chunks[-1].end_pos,
-            )
-            temp_chunk.protected_text = merged_text
+        with ThreadPoolExecutor(max_workers=4) as executor:
+            futures = {}
+            for i, merged_text, constituent_chunks in pending_groups:
+                temp_chunk = ProseChunk(
+                    text=merged_text,
+                    start_pos=constituent_chunks[0].start_pos,
+                    end_pos=constituent_chunks[-1].end_pos,
+                )
+                temp_chunk.protected_text = merged_text
+                future = executor.submit(model_mgr.detector.detect, temp_chunk)
+                futures[future] = (i, merged_text, constituent_chunks)
 
-            result = model_mgr.detector.detect(temp_chunk)
+            for future in as_completed(futures):
+                i, merged_text, constituent_chunks = futures[future]
+                result = future.result()
 
-            # Fan out the detection result to all constituent chunks
-            for constituent in constituent_chunks:
-                doc_result.detections.append(
-                    DetectionResult(
-                        chunk_id=constituent.id,
-                        ensemble_score=result.ensemble_score,
-                        classification=result.classification,
-                        roberta_score=result.roberta_score,
-                        statistical_score=result.statistical_score,
-                        binoculars_score=result.binoculars_score,
-                        feature_details=result.feature_details,
+                # Fan out the detection result to all constituent chunks
+                for constituent in constituent_chunks:
+                    doc_result.detections.append(
+                        DetectionResult(
+                            chunk_id=constituent.id,
+                            ensemble_score=result.ensemble_score,
+                            classification=result.classification,
+                            roberta_score=result.roberta_score,
+                            statistical_score=result.statistical_score,
+                            binoculars_score=result.binoculars_score,
+                            feature_details=result.feature_details,
+                        )
                     )
-                )
-                completed_ids["detection"].append(constituent.id)
+                    completed_ids["detection"].append(constituent.id)
 
-            if checkpoint_mgr is not None:
-                checkpoint_mgr.save(
-                    doc_result,
-                    PipelineState.DETECTING.value,
-                    completed_ids,
-                    failed_ids,
-                )
+                if checkpoint_mgr is not None:
+                    checkpoint_mgr.save(
+                        doc_result,
+                        PipelineState.DETECTING.value,
+                        completed_ids,
+                        failed_ids,
+                    )
 
         # Build detection map
         detection_map = {d.chunk_id: d for d in doc_result.detections}
+        target_classifications = {"ai_generated"}
+        if self._config.humanizer.humanize_ambiguous:
+            target_classifications.add("ambiguous")
+        else:
+            ambiguous_count = sum(
+                1 for c in prose_chunks
+                if detection_map.get(c.id) is not None
+                and detection_map[c.id].classification == "ambiguous"
+            )
+            if ambiguous_count:
+                logger.info(
+                    "Skipping %d ambiguous chunks (humanize_ambiguous=false)",
+                    ambiguous_count,
+                )
         target_chunks = [
             c
             for c in prose_chunks
             if detection_map.get(c.id) is not None
-            and detection_map[c.id].classification in ("ai_generated", "ambiguous")
+            and detection_map[c.id].classification in target_classifications
         ]
         total_targets = len(target_chunks)
 
@@ -175,49 +201,47 @@ class LUCIDPipeline:
         if target_chunks:
             model_mgr.release_detection_models()
             model_mgr.initialize_humanizer()
-            model_mgr.initialize_evaluator()
+            if not self._skip_eval:
+                model_mgr.initialize_evaluator()
 
-            for i, chunk in enumerate(target_chunks):
-                if chunk.id in completed_ids.get("humanization", []):
-                    continue
-                if chunk.id in failed_ids:
-                    continue
+            # Filter chunks that still need humanization
+            pending_chunks = [
+                chunk
+                for chunk in target_chunks
+                if chunk.id not in completed_ids.get("humanization", [])
+                and chunk.id not in failed_ids
+            ]
 
+            # --- Batch humanization ---
+            if pending_chunks:
                 self._emit(
                     progress_callback,
                     PipelineState.HUMANIZING,
-                    chunk.id,
-                    i,
+                    None,
+                    0,
                     total_targets,
-                    f"Humanizing chunk {chunk.id[:8]}",
+                    f"Humanizing {len(pending_chunks)} chunks (batch)",
                 )
-                try:
-                    paraphrase = model_mgr.humanizer.humanize(
-                        chunk, detection_map[chunk.id]
-                    )
-                    doc_result.paraphrases.append(paraphrase)
 
-                    self._emit(
-                        progress_callback,
-                        PipelineState.EVALUATING,
-                        chunk.id,
-                        i,
-                        total_targets,
-                        f"Evaluating chunk {chunk.id[:8]}",
-                    )
-                    evaluation = model_mgr.evaluator.evaluate_chunk(
-                        chunk.id, chunk.text, paraphrase.humanized_text
-                    )
-                    doc_result.evaluations.append(evaluation)
+                chunks_and_detections = [
+                    (chunk, detection_map[chunk.id]) for chunk in pending_chunks
+                ]
 
-                    if evaluation.passed:
-                        chunk.metadata["humanized_text"] = paraphrase.humanized_text
+                # humanize_batch returns results positionally; failures raise per-chunk
+                # Use individual error handling by processing via gather with return_exceptions
+                batch_results: list[ParaphraseResult | BaseException] = (
+                    model_mgr.humanizer.humanize_batch(chunks_and_detections)
+                )
 
-                    completed_ids["humanization"].append(chunk.id)
-                    completed_ids["evaluation"].append(chunk.id)
-                except Exception as exc:
-                    logger.error("Chunk %s failed: %s", chunk.id, exc)
-                    failed_ids[chunk.id] = str(exc)
+                paraphrase_map: dict[str, ParaphraseResult] = {}
+                for chunk, result in zip(pending_chunks, batch_results):
+                    if isinstance(result, BaseException):
+                        logger.error("Chunk %s humanization failed: %s", chunk.id, result)
+                        failed_ids[chunk.id] = str(result)
+                    else:
+                        doc_result.paraphrases.append(result)
+                        paraphrase_map[chunk.id] = result
+                        completed_ids["humanization"].append(chunk.id)
 
                 if checkpoint_mgr is not None:
                     checkpoint_mgr.save(
@@ -226,6 +250,63 @@ class LUCIDPipeline:
                         completed_ids,
                         failed_ids,
                     )
+
+                if self._skip_eval:
+                    # Apply humanized text directly without evaluation
+                    for chunk in pending_chunks:
+                        if chunk.id in paraphrase_map:
+                            chunk.metadata["humanized_text"] = (
+                                paraphrase_map[chunk.id].humanized_text
+                            )
+                            completed_ids["evaluation"].append(chunk.id)
+                else:
+                    # --- Parallel evaluation ---
+                    eval_chunks = [c for c in pending_chunks if c.id in paraphrase_map]
+                    if eval_chunks:
+                        self._emit(
+                            progress_callback,
+                            PipelineState.EVALUATING,
+                            None,
+                            0,
+                            total_targets,
+                            f"Evaluating {len(eval_chunks)} chunks (parallel)",
+                        )
+
+                        with ThreadPoolExecutor(max_workers=4) as executor:
+                            eval_futures = {}
+                            for chunk in eval_chunks:
+                                p = paraphrase_map[chunk.id]
+                                future = executor.submit(
+                                    model_mgr.evaluator.evaluate_chunk,
+                                    chunk.id,
+                                    chunk.text,
+                                    p.humanized_text,
+                                )
+                                eval_futures[future] = chunk
+
+                            for future in as_completed(eval_futures):
+                                chunk = eval_futures[future]
+                                try:
+                                    evaluation = future.result()
+                                    doc_result.evaluations.append(evaluation)
+                                    if evaluation.passed:
+                                        chunk.metadata["humanized_text"] = (
+                                            paraphrase_map[chunk.id].humanized_text
+                                        )
+                                    completed_ids["evaluation"].append(chunk.id)
+                                except Exception as exc:
+                                    logger.error(
+                                        "Chunk %s evaluation failed: %s", chunk.id, exc
+                                    )
+                                    failed_ids[chunk.id] = str(exc)
+
+                        if checkpoint_mgr is not None:
+                            checkpoint_mgr.save(
+                                doc_result,
+                                PipelineState.EVALUATING.value,
+                                completed_ids,
+                                failed_ids,
+                            )
 
         # RECONSTRUCTING
         self._emit(
