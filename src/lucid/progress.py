@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import sys
+import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -43,6 +44,17 @@ class PipelineEvent:
     detail: str
 
 
+def _format_duration(seconds: float) -> str:
+    """Format seconds into a human-readable duration string."""
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, secs = divmod(seconds, 60)
+    if minutes < 60:
+        return f"{int(minutes)}m {secs:.1f}s"
+    hours, minutes = divmod(int(minutes), 60)
+    return f"{hours}h {int(minutes)}m {secs:.1f}s"
+
+
 class ProgressReporter:
     """Rich-based progress display for the LUCID pipeline.
 
@@ -64,6 +76,7 @@ class ProgressReporter:
         self._current_state: str = ""
         self._is_tty: bool = sys.stderr.isatty()
         self._logger: logging.Logger = logging.getLogger("lucid.progress")
+        self._start_time: float = 0.0
 
     def callback(self, event: PipelineEvent) -> None:
         """Handle a pipeline event -- update progress display."""
@@ -102,6 +115,8 @@ class ProgressReporter:
         if self._quiet:
             return
 
+        self._start_time = time.perf_counter()
+
         if self._is_tty:
             self._progress = Progress(
                 SpinnerColumn(),
@@ -114,7 +129,7 @@ class ProgressReporter:
             self._progress.start()
             self._task_id = self._progress.add_task("[cyan]STARTING", total=total_chunks)
         else:
-            self._logger.info("Pipeline started -- %d chunks to process", total_chunks)
+            self._logger.info("Pipeline started")
 
     def finish(self, document_result: DocumentResult) -> None:
         """Stop progress and print summary table."""
@@ -138,7 +153,25 @@ class ProgressReporter:
         table.add_row("Eval failed", str(stats.get("eval_failed", 0)))
         table.add_row("Skipped (failed)", str(stats.get("failed", 0)))
 
+        # Surface evaluation rejection reasons
+        rejected = [e for e in document_result.evaluations if not e.passed]
+        if rejected:
+            reasons: dict[str, int] = {}
+            for e in rejected:
+                key = e.rejection_reason or "unknown"
+                # Normalize variable scores to category
+                if key.startswith("embedding similarity"):
+                    key = "embedding similarity below threshold"
+                elif key.startswith("BERTScore F1"):
+                    key = "BERTScore F1 below threshold"
+                reasons[key] = reasons.get(key, 0) + 1
+            summary_parts = [f"{reason} ({count})" for reason, count in reasons.items()]
+            table.add_row("Rejection reasons", "; ".join(summary_parts))
+
         if document_result.output_path:
             table.add_row("Output", document_result.output_path)
+
+        elapsed = time.perf_counter() - self._start_time
+        table.add_row("Elapsed", _format_duration(elapsed))
 
         self._console.print(table)

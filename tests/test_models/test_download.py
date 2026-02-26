@@ -60,7 +60,7 @@ class TestCheckOllamaModel:
         mock_resp.json.return_value = {
             "models": [
                 {"name": "qwen2.5:7b", "size": "4.4 GB"},
-                {"name": "llama3.1:8b", "size": "4.7 GB"},
+                {"name": "llama3.2:8b", "size": "4.7 GB"},
             ]
         }
         mock_get.return_value = mock_resp
@@ -77,7 +77,7 @@ class TestCheckOllamaModel:
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
             "models": [
-                {"name": "llama3.1:8b", "size": "4.7 GB"},
+                {"name": "llama3.2:8b", "size": "4.7 GB"},
             ]
         }
         mock_get.return_value = mock_resp

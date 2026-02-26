@@ -87,11 +87,11 @@ class BinocularsDetector:
             try:
                 self._tokenizer = AutoTokenizer.from_pretrained(self._observer_id)
                 self._observer = AutoModelForCausalLM.from_pretrained(
-                    self._observer_id, torch_dtype=torch.float16, device_map="cpu"
-                )
+                    self._observer_id, dtype=torch.float16
+                ).to("cpu")
                 self._performer = AutoModelForCausalLM.from_pretrained(
-                    self._performer_id, torch_dtype=torch.float16, device_map="cpu"
-                )
+                    self._performer_id, dtype=torch.float16
+                ).to("cpu")
                 self._observer.eval()
                 self._performer.eval()
                 self._loaded = True
@@ -115,9 +115,10 @@ class BinocularsDetector:
         import torch
         import torch.nn.functional as F
 
-        inputs = self._tokenizer(
-            text, return_tensors="pt", truncation=True, max_length=512
-        )
+        with _lock:
+            inputs = self._tokenizer(
+                text, return_tensors="pt", truncation=True, max_length=512
+            )
         input_ids = inputs["input_ids"]
 
         with torch.no_grad():

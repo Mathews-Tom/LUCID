@@ -53,7 +53,7 @@ def _make_configs(
     oconfig = OllamaConfig(
         host="http://localhost:11434",
         timeout_seconds=30,
-        models=OllamaModelsConfig(fast="phi3:3.8b", balanced="qwen2.5:7b", quality="llama3.1:8b"),
+        models=OllamaModelsConfig(fast="phi3:3.8b", balanced="qwen2.5:7b", quality="llama3.2:8b"),
     )
     return hconfig, oconfig
 
@@ -210,7 +210,7 @@ class TestModelSelection:
         hconfig, oconfig = _make_configs()
         detector = MagicMock()
         humanizer = LUCIDHumanizer(hconfig, oconfig, detector, profile="quality")
-        assert humanizer._model == "llama3.1:8b"
+        assert humanizer._model == "llama3.2:8b"
 
     def test_fast_temperature(self) -> None:
         hconfig, oconfig = _make_configs()
