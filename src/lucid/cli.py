@@ -52,6 +52,12 @@ def _resolve_inputs(input_path: Path) -> list[Path]:
 )
 @click.option("-v", "--verbose", is_flag=True, default=False, help="Verbose output.")
 @click.option("-q", "--quiet", is_flag=True, default=False, help="Suppress all output.")
+@click.option(
+    "--log-file",
+    type=click.Path(path_type=Path),
+    default=None,
+    help="Write all log output to this file (in addition to stderr).",
+)
 @click.pass_context
 def main(
     ctx: click.Context,
@@ -59,6 +65,7 @@ def main(
     config_path: Path | None,
     verbose: bool,
     quiet: bool,
+    log_file: Path | None,
 ) -> None:
     """LUCID -- AI content detection and humanization engine."""
     ctx.ensure_object(dict)
@@ -73,7 +80,27 @@ def main(
     level = logging.DEBUG if verbose else logging.WARNING
     if quiet:
         level = logging.CRITICAL
-    logging.basicConfig(level=level, format="%(name)s: %(message)s", stream=sys.stderr)
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(level)
+
+    fmt = logging.Formatter("%(name)s: %(message)s")
+
+    stderr_handler = logging.StreamHandler(sys.stderr)
+    stderr_handler.setFormatter(fmt)
+    root_logger.addHandler(stderr_handler)
+
+    if log_file is not None:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, mode="w", encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(fmt)
+        root_logger.addHandler(file_handler)
+        root_logger.setLevel(logging.DEBUG)
+
+    logging.getLogger("markdown_it").setLevel(logging.WARNING)
+    logging.getLogger("transformers").setLevel(logging.WARNING)
+    logging.getLogger("sentence_transformers").setLevel(logging.WARNING)
 
 
 @main.command()
@@ -133,6 +160,12 @@ def detect(
 @click.option("-o", "--output", "output_path", type=click.Path(path_type=Path), default=None)
 @click.option("--model", default=None, help="Override Ollama model tag.")
 @click.option("--adversarial/--no-adversarial", default=True, help="Enable adversarial loop.")
+@click.option(
+    "--skip-eval",
+    is_flag=True,
+    default=False,
+    help="Skip semantic evaluation and apply all humanized text directly.",
+)
 @click.pass_context
 def humanize(
     ctx: click.Context,
@@ -140,6 +173,7 @@ def humanize(
     output_path: Path | None,
     model: str | None,
     adversarial: bool,
+    skip_eval: bool,
 ) -> None:
     """Humanize AI-generated content in a document."""
     from lucid.pipeline import LUCIDPipeline
@@ -161,7 +195,7 @@ def humanize(
     reporter = ProgressReporter(console, verbose=obj["verbose"], quiet=obj["quiet"])
 
     files = _resolve_inputs(input_path)
-    pipeline = LUCIDPipeline(config)
+    pipeline = LUCIDPipeline(config, skip_eval=skip_eval)
 
     for fpath in files:
         prose_count = 0
@@ -190,6 +224,12 @@ def humanize(
     default=None,
     help="Checkpoint directory.",
 )
+@click.option(
+    "--skip-eval",
+    is_flag=True,
+    default=False,
+    help="Skip semantic evaluation and apply all humanized text directly.",
+)
 @click.pass_context
 def pipeline_cmd(
     ctx: click.Context,
@@ -199,6 +239,7 @@ def pipeline_cmd(
     output_format: str,
     resume: bool,
     checkpoint_dir: Path | None,
+    skip_eval: bool,
 ) -> None:
     """Run the full detect-humanize-reconstruct pipeline."""
     from lucid.output import OutputFormatter
@@ -215,7 +256,7 @@ def pipeline_cmd(
         ckpt_dir = Path.cwd() / ".lucid_checkpoints"
 
     files = _resolve_inputs(input_path)
-    pipeline_obj = LUCIDPipeline(config, checkpoint_dir=ckpt_dir)
+    pipeline_obj = LUCIDPipeline(config, checkpoint_dir=ckpt_dir, skip_eval=skip_eval)
     formatter = OutputFormatter()
 
     for fpath in files:
