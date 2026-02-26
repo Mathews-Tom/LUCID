@@ -10,13 +10,13 @@ timeout_seconds = 60
 health_check_on_start = true
 
 [ollama.models]
-fast = "phi3:3.8b"
+fast = "phi4:latest"
 balanced = "qwen2.5:7b"
-quality = "llama3.1:8b"
+quality = "llama3.1:latest"
 
 [detection]
 enabled = true
-roberta_model = "roberta-base-openai-detector"
+roberta_model = "openai-community/roberta-base-openai-detector"
 use_statistical = true
 use_binoculars = false
 
@@ -38,6 +38,7 @@ ambiguity_triggers_binoculars = true
 max_retries = 3
 adversarial_iterations = 8
 adversarial_target_score = 0.25
+humanize_ambiguous = true
 
 [humanizer.temperature]
 fast = 0.7
@@ -52,10 +53,10 @@ protect_numbers = true
 
 [evaluator]
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_threshold = 0.80
+embedding_threshold = 0.75
 nli_model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
 nli_require_bidirectional = true
-bertscore_threshold = 0.88
+bertscore_threshold = 0.85
 bertscore_model = "microsoft/deberta-xlarge-mnli"
 
 [parser]
