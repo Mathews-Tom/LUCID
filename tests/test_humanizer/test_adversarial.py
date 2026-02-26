@@ -87,6 +87,7 @@ def _make_mock_detector(scores: list[float]) -> MagicMock:
         )
 
     detector.detect = mock_detect
+    detector.detect_fast = mock_detect
     return detector
 
 

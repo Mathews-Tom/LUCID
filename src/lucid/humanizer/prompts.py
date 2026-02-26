@@ -106,7 +106,16 @@ class PromptBuilder:
         Returns:
             Complete prompt string ready for ``OllamaClient.generate()``.
         """
-        parts: list[str] = [_SYSTEM_PROMPT, "", _RULES]
+        parts: list[str] = [_SYSTEM_PROMPT]
+
+        # Placeholder enumeration immediately after system prompt
+        # (strongest attention window for LLMs)
+        if placeholders:
+            parts.append("")
+            parts.append(_PLACEHOLDER_ENUMERATION.format(tokens=", ".join(placeholders)))
+
+        parts.append("")
+        parts.append(_RULES)
 
         # Strategy modifier
         modifier = strategy.prompt_modifier
@@ -124,11 +133,6 @@ class PromptBuilder:
                 parts.append(f"\nExample {i}:")
                 parts.append(f"INPUT: {ex.input}")
                 parts.append(f"OUTPUT: {ex.output}")
-
-        # Placeholder enumeration
-        if placeholders:
-            parts.append("")
-            parts.append(_PLACEHOLDER_ENUMERATION.format(tokens=", ".join(placeholders)))
 
         # Input text
         parts.append("")

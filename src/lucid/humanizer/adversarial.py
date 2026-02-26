@@ -61,13 +61,19 @@ async def adversarial_humanize(
     """
     protected = term_protector.protect(chunk)
     temperature = getattr(config.temperature, profile)
-    options = GenerateOptions(temperature=temperature)
+    all_placeholders = protected.all_placeholders()
+    placeholder_count = len(all_placeholders)
+
+    # Scale num_predict with input length to avoid truncation on long chunks
+    input_token_estimate = len(protected.text.split()) * 2
+    num_predict = max(512, min(2048, int(input_token_estimate * 1.3)))
+    options = GenerateOptions(temperature=temperature, num_predict=num_predict)
 
     best: ParaphraseResult | None = None
     domain = chunk.domain_hint or "general"
 
     for i in range(config.adversarial_iterations):
-        strategy = select_strategy(i)
+        strategy = select_strategy(i, placeholder_count=placeholder_count)
 
         prompt = prompt_builder.build(
             protected.text,
@@ -96,11 +102,30 @@ async def adversarial_humanize(
         )
         if not validation.is_valid:
             logger.warning(
-                "Iteration %d: LLM dropped placeholders %s, skipping",
+                "Iteration %d: LLM dropped placeholders %s, retrying with lower temp",
                 i,
                 validation.missing_placeholders,
             )
-            continue
+            # Retry once with reduced temperature (less creativity, more literal copying)
+            retry_temp = max(0.1, temperature - 0.2)
+            retry_options = GenerateOptions(
+                temperature=retry_temp, num_predict=options.num_predict
+            )
+            try:
+                retry_result = await client.generate(prompt, model, options=retry_options)
+            except OllamaError:
+                logger.warning("Iteration %d: retry generation also failed", i)
+                continue
+            retry_validation = term_protector.validate(
+                retry_result.text,
+                protected.term_placeholders,
+                protected.math_placeholders,
+            )
+            if not retry_validation.is_valid:
+                logger.warning("Iteration %d: retry also dropped placeholders, skipping", i)
+                continue
+            result = retry_result
+            validation = retry_validation
 
         # Restore placeholders and re-score
         restored = term_protector.restore(
@@ -112,7 +137,7 @@ async def adversarial_humanize(
             start_pos=chunk.start_pos,
             end_pos=chunk.start_pos + len(restored),
         )
-        score = detector.detect(temp_chunk).ensemble_score
+        score = detector.detect_fast(temp_chunk).ensemble_score
 
         candidate = ParaphraseResult(
             chunk_id=chunk.id,
