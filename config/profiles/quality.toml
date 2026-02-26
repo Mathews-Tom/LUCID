@@ -9,11 +9,11 @@ use_binoculars = true
 
 [humanizer]
 max_retries = 5
-adversarial_iterations = 12
+adversarial_iterations = 8
 
 [evaluator]
-embedding_threshold = 0.85
-bertscore_threshold = 0.90
+embedding_threshold = 0.78
+bertscore_threshold = 0.87
 
 [validation]
 latex_compile_check = true

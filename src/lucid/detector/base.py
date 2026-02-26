@@ -108,6 +108,47 @@ class LUCIDDetector:
             feature_details=feature_details,
         )
 
+    def detect_fast(self, chunk: ProseChunk) -> DetectionResult:
+        """Lightweight re-scoring using Tier 1 + Tier 2 only (no Binoculars).
+
+        Intended for the adversarial humanization loop where sub-second
+        feedback is needed and models may have been unloaded to free memory.
+
+        Args:
+            chunk: Prose chunk to re-score. Uses chunk.protected_text.
+
+        Returns:
+            DetectionResult with ensemble score from Tier 1+2 only.
+        """
+        text = chunk.protected_text
+
+        roberta_score = self._roberta.detect_text(text)
+
+        statistical_score: float | None = None
+        if self._statistical is not None:
+            try:
+                statistical_score = self._statistical.score(text)
+            except Exception:
+                logger.warning(
+                    "Statistical detection failed during fast re-score",
+                    exc_info=True,
+                )
+
+        ensemble_score = compute_ensemble(
+            roberta_score, statistical_score, None, self._config.ensemble_weights
+        )
+        classification = classify(ensemble_score, self._config.thresholds)
+
+        return DetectionResult(
+            chunk_id=chunk.id,
+            ensemble_score=ensemble_score,
+            classification=classification,
+            roberta_score=roberta_score,
+            statistical_score=statistical_score,
+            binoculars_score=None,
+            feature_details={},
+        )
+
     def _should_run_binoculars(
         self, roberta_score: float, statistical_score: float | None
     ) -> bool:

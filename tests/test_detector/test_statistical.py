@@ -58,7 +58,7 @@ class TestCombineFeatures:
             "burstiness": None,
             "ttr": None,
             "hapax_ratio": None,
-            "mean_sentence_length": None,
+
             "sentence_length_variance": None,
             "pos_trigram_entropy": None,
         }
@@ -70,7 +70,7 @@ class TestCombineFeatures:
             "burstiness": 0.5,
             "ttr": 0.5,
             "hapax_ratio": 0.3,
-            "mean_sentence_length": 15.0,
+
             "sentence_length_variance": 80.0,
             "pos_trigram_entropy": 3.5,
         }
@@ -84,7 +84,7 @@ class TestCombineFeatures:
             "burstiness": None,
             "ttr": None,
             "hapax_ratio": None,
-            "mean_sentence_length": None,
+
             "sentence_length_variance": None,
             "pos_trigram_entropy": None,
         }
@@ -93,7 +93,7 @@ class TestCombineFeatures:
             "burstiness": None,
             "ttr": None,
             "hapax_ratio": None,
-            "mean_sentence_length": None,
+
             "sentence_length_variance": None,
             "pos_trigram_entropy": None,
         }
@@ -262,7 +262,7 @@ class TestScoreMinWordsThreshold:
             "burstiness": None,
             "ttr": None,
             "hapax_ratio": None,
-            "mean_sentence_length": None,
+
             "sentence_length_variance": None,
             "pos_trigram_entropy": None,
         }
@@ -284,7 +284,7 @@ class TestScoreMinWordsThreshold:
         detector = StatisticalDetector(use_gpt2_perplexity=False)
         all_none: dict[str, Any] = {k: None for k in [
             "perplexity_proxy", "burstiness", "ttr", "hapax_ratio",
-            "mean_sentence_length", "sentence_length_variance", "pos_trigram_entropy"
+            "sentence_length_variance", "pos_trigram_entropy"
         ]}
         text = " ".join([f"word{i}" for i in range(50)])
         with patch.object(detector, "extract_features", return_value=all_none):
@@ -300,7 +300,6 @@ class TestExtractFeaturesAllKeys:
         "burstiness",
         "ttr",
         "hapax_ratio",
-        "mean_sentence_length",
         "sentence_length_variance",
         "pos_trigram_entropy",
     })
@@ -356,7 +355,7 @@ class TestFallbackScoringWithoutXGBoost:
             "burstiness": 0.4,
             "ttr": 0.6,
             "hapax_ratio": 0.35,
-            "mean_sentence_length": 12.0,
+
             "sentence_length_variance": 50.0,
             "pos_trigram_entropy": 3.0,
         }
@@ -370,7 +369,7 @@ class TestFallbackScoringWithoutXGBoost:
             "burstiness": None,
             "ttr": 0.5,  # mid bound: ttr bounds are (0.2, 0.9), invert=True
             "hapax_ratio": None,
-            "mean_sentence_length": None,
+
             "sentence_length_variance": None,
             "pos_trigram_entropy": None,
         }

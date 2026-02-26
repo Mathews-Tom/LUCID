@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ if TYPE_CHECKING:
     from bert_score import BERTScorer
 
 logger = logging.getLogger(__name__)
+
+_bertscore_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,14 +36,16 @@ class BERTScoreChecker:
 
     def _load_scorer(self) -> BERTScorer:
         if self._scorer is None:
-            from bert_score import BERTScorer
+            with _bertscore_lock:
+                if self._scorer is None:
+                    from bert_score import BERTScorer
 
-            logger.info("Loading BERTScore model: %s", self._model_type)
-            self._scorer = BERTScorer(
-                model_type=self._model_type,
-                rescale_with_baseline=True,
-                lang="en",
-            )
+                    logger.info("Loading BERTScore model: %s", self._model_type)
+                    self._scorer = BERTScorer(
+                        model_type=self._model_type,
+                        rescale_with_baseline=True,
+                        lang="en",
+                    )
         return self._scorer
 
     def compute(self, original: str, paraphrase: str) -> BERTScoreResult:

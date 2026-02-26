@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
@@ -67,7 +68,7 @@ class GenerateOptions:
     top_k: int = 40
     repeat_penalty: float = 1.1
     num_predict: int = 512
-    num_ctx: int = 4096
+    num_ctx: int = 2048
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to Ollama API options dict."""
@@ -99,6 +100,66 @@ class GenerateResult:
     model: str
     total_duration_ns: int
     eval_count: int
+
+
+# ---------------------------------------------------------------------------
+# Model resolution helpers
+# ---------------------------------------------------------------------------
+
+# Map common size suffixes to approximate byte sizes for comparison.
+_SIZE_SUFFIX_BYTES: dict[str, int] = {
+    "1b": 1_000_000_000,
+    "3b": 3_000_000_000,
+    "3.8b": 3_800_000_000,
+    "7b": 7_000_000_000,
+    "8b": 8_000_000_000,
+    "13b": 13_000_000_000,
+    "14b": 14_000_000_000,
+    "32b": 32_000_000_000,
+    "70b": 70_000_000_000,
+}
+
+
+def _extract_model_family(tag: str) -> str:
+    """Extract the base model family from an Ollama tag.
+
+    Examples:
+        ``llama3.1:8b``   → ``llama3``
+        ``llama3.2:latest`` → ``llama3``
+        ``qwen2.5:7b``    → ``qwen2``
+        ``phi3:3.8b``     → ``phi3``
+        ``gemma3:latest``  → ``gemma3``
+
+    Strips the version suffix (digits/dots after the family name) and the
+    size/tag portion after the colon.
+    """
+    # Remove everything after ':'
+    base = tag.split(":")[0]
+    # Strip trailing version numbers: "llama3.1" → "llama3", "qwen2.5" → "qwen2"
+    # Keep the first digit sequence attached to the name (e.g., "llama3", "phi3")
+    # but strip subsequent .N version suffixes.
+    match = re.match(r"^([a-zA-Z]+-?[a-zA-Z]*\d*)(?:\.\d+)*$", base)
+    if match:
+        return match.group(1)
+    return base
+
+
+def _extract_size_bytes(tag: str, models: list[ModelInfo]) -> int:
+    """Estimate model size in bytes from the tag suffix or model metadata.
+
+    Checks the tag suffix first (e.g., ``:8b``), then falls back to the
+    ``ModelInfo.size`` field if the model is in the list.
+    """
+    if ":" in tag:
+        suffix = tag.split(":", 1)[1].lower()
+        if suffix in _SIZE_SUFFIX_BYTES:
+            return _SIZE_SUFFIX_BYTES[suffix]
+
+    # Fall back to metadata
+    for m in models:
+        if m.name == tag:
+            return m.size
+    return 0
 
 
 # ---------------------------------------------------------------------------
@@ -197,6 +258,56 @@ class OllamaClient:
         if model in names:
             return True
         return ":" not in model and f"{model}:latest" in names
+
+    async def resolve_model(self, requested: str) -> str:
+        """Resolve a requested model tag to an available model.
+
+        Resolution order:
+        1. Exact match → return as-is.
+        2. Family match → find available models sharing the same base family
+           (e.g., ``llama3.1:8b`` matches ``llama3.2:latest``), prefer the
+           closest size match.
+        3. No match → raise OllamaModelNotFoundError.
+
+        Args:
+            requested: The configured model tag (e.g., ``"llama3.1:8b"``).
+
+        Returns:
+            An available model tag on the server.
+
+        Raises:
+            OllamaModelNotFoundError: No exact or family match found.
+        """
+        models = await self.list_models()
+        names = {m.name for m in models}
+
+        # 1. Exact match
+        if requested in names:
+            return requested
+        # Also try :latest suffix
+        if ":" not in requested and f"{requested}:latest" in names:
+            return f"{requested}:latest"
+
+        # 2. Family match
+        family = _extract_model_family(requested)
+        requested_size = _extract_size_bytes(requested, models)
+
+        candidates: list[ModelInfo] = []
+        for m in models:
+            if _extract_model_family(m.name) == family:
+                candidates.append(m)
+
+        if candidates:
+            # Sort by size proximity to the requested model's expected size
+            if requested_size > 0:
+                candidates.sort(key=lambda m: abs(m.size - requested_size))
+            else:
+                # No size info — prefer models with larger size (higher quality)
+                candidates.sort(key=lambda m: m.size, reverse=True)
+            return candidates[0].name
+
+        # 3. No match
+        raise OllamaModelNotFoundError(requested, [m.name for m in models])
 
     # -- Generation ------------------------------------------------------------
 

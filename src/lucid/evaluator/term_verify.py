@@ -9,10 +9,37 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
 
 # Reuse the same placeholder pattern as term_protect.py
 _PLACEHOLDER_RE = re.compile(r"\[(?:MATH|TERM)_(\d{3})\]")
 _NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?%?")
+
+
+def _numbers_match(a: str, b: str) -> bool:
+    """Check whether two number strings represent the same value.
+
+    Handles trailing zeros (2.5 vs 2.50), leading zeros (02 vs 2),
+    integer/float equivalence (100 vs 100.0), and percentage spacing
+    (50% vs 50 %).
+
+    Args:
+        a: First number string (as captured by _NUMBER_RE).
+        b: Second number string (as captured by _NUMBER_RE).
+
+    Returns:
+        True when the numeric values are equivalent.
+    """
+    a_pct = a.endswith("%")
+    b_pct = b.endswith("%")
+    if a_pct != b_pct:
+        return False
+    a_num = a.rstrip("%")
+    b_num = b.rstrip("%")
+    try:
+        return Decimal(a_num) == Decimal(b_num)
+    except InvalidOperation:
+        return a == b
 
 
 @dataclass(frozen=True, slots=True)
@@ -78,7 +105,20 @@ class TermVerifier:
         return sorted(original_tokens - paraphrase_tokens)
 
     def _check_numbers(self, original: str, paraphrase: str) -> list[str]:
-        """Return numerical values in original that are absent from paraphrase."""
-        original_numbers = set(_NUMBER_RE.findall(original))
-        paraphrase_numbers = set(_NUMBER_RE.findall(paraphrase))
-        return sorted(original_numbers - paraphrase_numbers)
+        """Return numerical values in original that are absent from paraphrase.
+
+        Uses fuzzy numeric comparison so that formatting differences
+        (trailing zeros, leading zeros, int/float equivalence, percent
+        spacing) do not cause false rejections.
+        """
+        # Normalize "50 %" → "50%" in paraphrase before extraction
+        normalized_paraphrase = re.sub(r"(\d)\s+%", r"\1%", paraphrase)
+        original_numbers = list(_NUMBER_RE.findall(original))
+        paraphrase_numbers = list(_NUMBER_RE.findall(normalized_paraphrase))
+
+        missing: list[str] = []
+        for orig_num in original_numbers:
+            if any(_numbers_match(orig_num, para_num) for para_num in paraphrase_numbers):
+                continue
+            missing.append(orig_num)
+        return sorted(set(missing))

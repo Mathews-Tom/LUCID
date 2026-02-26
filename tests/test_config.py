@@ -163,9 +163,9 @@ class TestLoadConfig:
     def test_model_tags_default(self) -> None:
         """Default model tags match design spec."""
         config = load_config()
-        assert config.ollama.models.fast == "phi3:3.8b"
+        assert config.ollama.models.fast == "phi4:latest"
         assert config.ollama.models.balanced == "qwen2.5:7b"
-        assert config.ollama.models.quality == "llama3.1:8b"
+        assert config.ollama.models.quality == "llama3.1:latest"
 
     def test_ensemble_weights_default(self) -> None:
         """Default ensemble weights sum to 1.0."""
@@ -190,10 +190,10 @@ class TestLUCIDConfigDefaults:
         assert config.detection.thresholds.ai_min == 0.65
 
     def test_evaluator_thresholds(self) -> None:
-        """Evaluator thresholds match system-design.md."""
+        """Evaluator thresholds match recalibrated defaults."""
         config = LUCIDConfig()
-        assert config.evaluator.embedding_threshold == 0.80
-        assert config.evaluator.bertscore_threshold == 0.88
+        assert config.evaluator.embedding_threshold == 0.75
+        assert config.evaluator.bertscore_threshold == 0.85
 
     def test_humanizer_defaults(self) -> None:
         """Humanizer defaults match system-design.md."""

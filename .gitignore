@@ -232,5 +232,9 @@ lucid_output/
 .docs/
 .sage/
 
+# Temporary and Local only files
+.lucid_checkpoints/
+samples/
+
 # macOS
 .DS_Store

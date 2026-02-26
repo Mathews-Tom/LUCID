@@ -30,7 +30,6 @@ _FEATURE_BOUNDS: dict[str, tuple[float, float, bool]] = {
     "burstiness": (0.0, 1.5, True),             # lower burstiness = more uniform = AI
     "ttr": (0.2, 0.9, True),                    # lower TTR = more repetitive = AI
     "hapax_ratio": (0.1, 0.6, True),            # fewer unique words = AI
-    "mean_sentence_length": (5.0, 40.0, False), # no clear direction; use raw
     "sentence_length_variance": (0.0, 200.0, True),  # lower variance = more uniform = AI
     "pos_trigram_entropy": (1.0, 6.0, True),    # lower entropy = more predictable = AI
 }
@@ -78,6 +77,7 @@ class StatisticalDetector:
                 self._nlp = _spacy.load(
                     "en_core_web_sm", disable=["parser", "ner", "lemmatizer"]
                 )
+                self._nlp.add_pipe("sentencizer")
             except OSError as exc:
                 raise DetectorInitError(
                     "spaCy model not found. Install with: "
@@ -279,14 +279,13 @@ class StatisticalDetector:
             len([t for t in sent if t.is_alpha]) for sent in sentences
         ]
 
-        mean_len, variance = self._compute_sentence_stats(sentence_lengths)
+        _mean_len, variance = self._compute_sentence_stats(sentence_lengths)
 
         return {
             "perplexity_proxy": self._compute_perplexity_proxy(text),
             "burstiness": self._compute_burstiness(sentence_lengths),
             "ttr": self._compute_ttr(words),
             "hapax_ratio": self._compute_hapax_ratio(words),
-            "mean_sentence_length": mean_len,
             "sentence_length_variance": variance,
             "pos_trigram_entropy": self._compute_pos_trigram_entropy(text),
         }

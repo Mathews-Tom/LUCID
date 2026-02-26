@@ -35,9 +35,9 @@ class GeneralConfig:
 class OllamaModelsConfig:
     """Model tags per quality profile."""
 
-    fast: str = "phi3:3.8b"
+    fast: str = "phi4:latest"
     balanced: str = "qwen2.5:7b"
-    quality: str = "llama3.1:8b"
+    quality: str = "llama3.2:latest"
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,7 +81,7 @@ class DetectionConfig:
     """AI detection engine settings."""
 
     enabled: bool = True
-    roberta_model: str = "roberta-base-openai-detector"
+    roberta_model: str = "openai-community/roberta-base-openai-detector"
     use_statistical: bool = True
     use_binoculars: bool = False
     ensemble_weights: EnsembleWeightsConfig = field(default_factory=EnsembleWeightsConfig)
@@ -117,6 +117,7 @@ class HumanizerConfig:
     max_retries: int = 3
     adversarial_iterations: int = 8
     adversarial_target_score: float = 0.25
+    humanize_ambiguous: bool = True
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
 
@@ -126,10 +127,10 @@ class EvaluatorConfig:
     """Semantic evaluation settings."""
 
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_threshold: float = 0.80
+    embedding_threshold: float = 0.75
     nli_model: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
     nli_require_bidirectional: bool = True
-    bertscore_threshold: float = 0.88
+    bertscore_threshold: float = 0.85
     bertscore_model: str = "microsoft/deberta-xlarge-mnli"
 
 

@@ -652,7 +652,7 @@ health_check_on_start = true
 [ollama.models]
 fast = "phi3:3.8b"
 balanced = "qwen2.5:7b"
-quality = "llama3.1:8b"
+quality = "llama3.2:8b"
 
 [detection]
 enabled = true
@@ -716,7 +716,7 @@ The system maintains a mapping of quality profiles to specific Ollama model tags
 # These are Ollama model tags — any pulled model works
 fast = "phi3:3.8b"           # MIT license, 2.4GB Q4
 balanced = "qwen2.5:7b"     # Apache 2.0, 4.5GB Q4
-quality = "llama3.1:8b"     # Meta Community, 4.9GB Q4
+quality = "llama3.2:8b"     # Meta Community, 4.9GB Q4
 
 # Alternative configurations users might prefer:
 # fast = "gemma2:2b"        # 1.6GB Q4, Google terms
