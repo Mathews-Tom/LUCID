@@ -15,7 +15,7 @@ from lucid.models.results import TransformResult
 from lucid.parser.chunk import ProseChunk
 
 if TYPE_CHECKING:
-    from lucid.config import HumanizerConfig
+    from lucid.config import TransformConfig
     from lucid.detector.base import LUCIDDetector
     from lucid.transform.ollama import OllamaClient
     from lucid.transform.prompts import PromptBuilder
@@ -32,7 +32,7 @@ async def transformation_search(
     detector: LUCIDDetector,
     term_protector: TermProtector,
     prompt_builder: PromptBuilder,
-    config: HumanizerConfig,
+    config: TransformConfig,
     model: str,
     profile: str,
 ) -> TransformResult:

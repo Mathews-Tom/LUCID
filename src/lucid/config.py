@@ -102,7 +102,7 @@ class TemperatureProfileConfig:
 
 @dataclass(frozen=True, slots=True)
 class TermProtectionConfig:
-    """Term protection settings for humanization."""
+    """Term protection settings for transformation."""
 
     use_ner: bool = True
     custom_terms: tuple[str, ...] = ()
@@ -111,13 +111,13 @@ class TermProtectionConfig:
 
 
 @dataclass(frozen=True, slots=True)
-class HumanizerConfig:
-    """Humanization engine settings."""
+class TransformConfig:
+    """Transform engine settings."""
 
     max_retries: int = 3
     adversarial_iterations: int = 8
     adversarial_target_score: float = 0.25
-    humanize_ambiguous: bool = True
+    transform_ambiguous: bool = True
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
 
@@ -160,7 +160,7 @@ class LUCIDConfig:
     general: GeneralConfig = field(default_factory=GeneralConfig)
     ollama: OllamaConfig = field(default_factory=OllamaConfig)
     detection: DetectionConfig = field(default_factory=DetectionConfig)
-    humanizer: HumanizerConfig = field(default_factory=HumanizerConfig)
+    transform: TransformConfig = field(default_factory=TransformConfig)
     evaluator: EvaluatorConfig = field(default_factory=EvaluatorConfig)
     parser: ParserConfig = field(default_factory=ParserConfig)
     validation: ValidationConfig = field(default_factory=ValidationConfig)
@@ -265,7 +265,7 @@ def _build_config(raw: dict[str, Any]) -> LUCIDConfig:
     general_raw = raw.get("general", {})
     ollama_raw = raw.get("ollama", {})
     detection_raw = raw.get("detection", {})
-    humanizer_raw = raw.get("humanizer", {})
+    transform_raw = raw.get("transform", {})
     evaluator_raw = raw.get("evaluator", {})
     parser_raw = raw.get("parser", {})
     validation_raw = raw.get("validation", {})
@@ -286,15 +286,15 @@ def _build_config(raw: dict[str, Any]) -> LUCIDConfig:
         thresholds=thresholds,
     )
 
-    temp = TemperatureProfileConfig(**humanizer_raw.pop("temperature", {}))
-    term_prot = TermProtectionConfig(**humanizer_raw.pop("term_protection", {}))
-    humanizer = HumanizerConfig(**humanizer_raw, temperature=temp, term_protection=term_prot)
+    temp = TemperatureProfileConfig(**transform_raw.pop("temperature", {}))
+    term_prot = TermProtectionConfig(**transform_raw.pop("term_protection", {}))
+    transform = TransformConfig(**transform_raw, temperature=temp, term_protection=term_prot)
 
     return LUCIDConfig(
         general=GeneralConfig(**general_raw),
         ollama=ollama,
         detection=detection,
-        humanizer=humanizer,
+        transform=transform,
         evaluator=EvaluatorConfig(**evaluator_raw),
         parser=ParserConfig(**parser_raw),
         validation=ValidationConfig(**validation_raw),

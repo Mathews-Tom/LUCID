@@ -126,7 +126,7 @@ class TestLoadConfig:
         assert config.general.profile == "fast"
         assert config.ollama.timeout_seconds == 30
         assert config.detection.use_statistical is False
-        assert config.humanizer.max_retries == 1
+        assert config.transform.max_retries == 1
 
     def test_quality_profile(self) -> None:
         """Quality profile enables binoculars and stricter thresholds."""
@@ -134,7 +134,7 @@ class TestLoadConfig:
         assert config.general.profile == "quality"
         assert config.detection.use_binoculars is True
         assert config.ollama.timeout_seconds == 120
-        assert config.humanizer.max_retries == 5
+        assert config.transform.max_retries == 5
 
     def test_cli_override_scalar(self) -> None:
         """CLI override changes a scalar value."""
@@ -150,10 +150,10 @@ class TestLoadConfig:
         """CLI override has higher priority than profile."""
         config = load_config(
             profile="fast",
-            cli_overrides={"humanizer.max_retries": "10"},
+            cli_overrides={"transform.max_retries": "10"},
         )
         # Fast profile sets max_retries=1, but CLI override sets 10
-        assert config.humanizer.max_retries == 10
+        assert config.transform.max_retries == 10
 
     def test_nonexistent_user_config_ignored(self) -> None:
         """Missing user config file is silently ignored."""
@@ -195,15 +195,15 @@ class TestLUCIDConfigDefaults:
         assert config.evaluator.embedding_threshold == 0.75
         assert config.evaluator.bertscore_threshold == 0.85
 
-    def test_humanizer_defaults(self) -> None:
-        """Humanizer defaults match system-design.md."""
+    def test_transform_defaults(self) -> None:
+        """Transform defaults match system-design.md."""
         config = LUCIDConfig()
-        assert config.humanizer.adversarial_iterations == 8
-        assert config.humanizer.adversarial_target_score == 0.25
+        assert config.transform.adversarial_iterations == 8
+        assert config.transform.adversarial_target_score == 0.25
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""
         config = LUCIDConfig()
-        assert config.humanizer.temperature.fast == 0.7
-        assert config.humanizer.temperature.balanced == 0.6
-        assert config.humanizer.temperature.quality == 0.5
+        assert config.transform.temperature.fast == 0.7
+        assert config.transform.temperature.balanced == 0.6
+        assert config.transform.temperature.quality == 0.5

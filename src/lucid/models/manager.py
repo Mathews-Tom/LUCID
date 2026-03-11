@@ -58,7 +58,7 @@ class ModelManager:
         from lucid.transform import LUCIDTransformer
 
         self._transformer = LUCIDTransformer(
-            self._config.humanizer,
+            self._config.transform,
             self._config.ollama,
             self._detector,
             self._config.general.profile,

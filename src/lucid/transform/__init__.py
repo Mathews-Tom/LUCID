@@ -18,7 +18,7 @@ from lucid.transform.term_protect import TermProtector
 from lucid.models.results import TransformResult
 
 if TYPE_CHECKING:
-    from lucid.config import HumanizerConfig, OllamaConfig
+    from lucid.config import TransformConfig, OllamaConfig
     from lucid.detector.base import LUCIDDetector
     from lucid.models.results import DetectionResult
     from lucid.parser.chunk import ProseChunk
@@ -35,7 +35,7 @@ class LUCIDTransformer:
     callers can use a plain ``transform(chunk, detection)`` call.
 
     Args:
-        humanizer_config: Transform settings (retries, search iterations, etc.).
+        transform_config: Transform settings (retries, search iterations, etc.).
         ollama_config: Ollama connection and model settings.
         detector: Detection engine used for search re-scoring.
         profile: Quality profile (``"fast"``, ``"balanced"``, ``"quality"``).
@@ -43,21 +43,21 @@ class LUCIDTransformer:
 
     def __init__(
         self,
-        humanizer_config: HumanizerConfig,
+        transform_config: TransformConfig,
         ollama_config: OllamaConfig,
         detector: LUCIDDetector,
         profile: str = "balanced",
     ) -> None:
-        self._config = humanizer_config
+        self._config = transform_config
         self._ollama_config = ollama_config
         self._detector = detector
         self._profile = profile
 
-        self._term_protector = TermProtector(humanizer_config.term_protection)
+        self._term_protector = TermProtector(transform_config.term_protection)
         self._prompt_builder = PromptBuilder()
 
         self._model: str = getattr(ollama_config.models, profile)
-        self._temperature: float = getattr(humanizer_config.temperature, profile)
+        self._temperature: float = getattr(transform_config.temperature, profile)
         self._model_resolved: bool = False
 
     def transform_batch(

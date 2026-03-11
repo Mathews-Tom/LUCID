@@ -72,7 +72,7 @@ class TestInitializeTransformer:
         result = manager.initialize_transformer()
 
         mock_transformer_cls.assert_called_once_with(
-            manager._config.humanizer,
+            manager._config.transform,
             manager._config.ollama,
             mock_detector_cls.return_value,
             manager._config.general.profile,

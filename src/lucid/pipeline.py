@@ -176,7 +176,7 @@ class LUCIDPipeline:
         # Build detection map
         detection_map = {d.chunk_id: d for d in doc_result.detections}
         target_classifications = {"ai_generated"}
-        if self._config.humanizer.humanize_ambiguous:
+        if self._config.transform.transform_ambiguous:
             target_classifications.add("ambiguous")
         else:
             ambiguous_count = sum(

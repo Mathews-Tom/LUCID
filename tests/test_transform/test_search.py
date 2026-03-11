@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from lucid.config import (
-    HumanizerConfig,
+    TransformConfig,
     TemperatureProfileConfig,
     TermProtectionConfig,
 )
@@ -39,8 +39,8 @@ def _make_detection(chunk_id: str, score: float = 0.85) -> DetectionResult:
     )
 
 
-def _make_config(iterations: int = 3, target: float = 0.25) -> HumanizerConfig:
-    return HumanizerConfig(
+def _make_config(iterations: int = 3, target: float = 0.25) -> TransformConfig:
+    return TransformConfig(
         adversarial_iterations=iterations,
         adversarial_target_score=target,
         temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
@@ -188,7 +188,7 @@ class TestAdversarialLoop:
         chunk = _make_chunk(text)
         detection = _make_detection(chunk.id)
         config = _make_config(iterations=3, target=0.25)
-        config_with_cite = HumanizerConfig(
+        config_with_cite = TransformConfig(
             adversarial_iterations=3,
             adversarial_target_score=0.25,
             temperature=config.temperature,
@@ -289,7 +289,7 @@ class TestAdversarialLoop:
         text = "See [Smith, 2024] for details."
         chunk = _make_chunk(text)
         detection = _make_detection(chunk.id)
-        config_with_cite = HumanizerConfig(
+        config_with_cite = TransformConfig(
             adversarial_iterations=2,
             adversarial_target_score=0.25,
             temperature=TemperatureProfileConfig(),

@@ -8,7 +8,7 @@ import httpx
 import pytest
 
 from lucid.config import (
-    TransformerConfig,
+    TransformConfig,
     OllamaConfig,
     OllamaModelsConfig,
     TemperatureProfileConfig,
@@ -42,8 +42,8 @@ def _make_detection(chunk_id: str, score: float = 0.85) -> DetectionResult:
 
 def _make_configs(
     adversarial_iterations: int = 1,
-) -> tuple[TransformerConfig, OllamaConfig]:
-    hconfig = TransformerConfig(
+) -> tuple[TransformConfig, OllamaConfig]:
+    hconfig = TransformConfig(
         adversarial_iterations=adversarial_iterations,
         temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
         term_protection=TermProtectionConfig(
@@ -151,7 +151,7 @@ class TestSinglePass:
         """If LLM drops a placeholder, ValueError is raised."""
         hconfig, oconfig = _make_configs(adversarial_iterations=1)
         # Enable citations so we get placeholders
-        hconfig_with_cite = TransformerConfig(
+        hconfig_with_cite = TransformConfig(
             adversarial_iterations=1,
             temperature=hconfig.temperature,
             term_protection=TermProtectionConfig(
