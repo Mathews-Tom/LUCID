@@ -1,4 +1,4 @@
-"""Embedding-based semantic similarity for the evaluator pipeline."""
+"""Embedding-based semantic similarity metric."""
 
 from __future__ import annotations
 
@@ -8,6 +8,9 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
+
+from lucid.core.types import MetricResult
+from lucid.metrics import metric_registry
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -61,3 +64,20 @@ class EmbeddingSimilarity:
         similarity = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
         logger.debug("Embedding similarity: %.4f", similarity)
         return EmbeddingResult(similarity=similarity)
+
+
+@metric_registry.register("embedding_cosine")
+class EmbeddingSimilarityMetric:
+    """Metric protocol wrapper for embedding cosine similarity."""
+
+    name: str = "embedding_cosine"
+
+    def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2") -> None:
+        self._inner = EmbeddingSimilarity(model_name=model_name)
+
+    def compute(self, original: str, transformed: str) -> MetricResult:
+        result = self._inner.compute(original, transformed)
+        return MetricResult(
+            metric_name=self.name,
+            value=result.similarity,
+        )

@@ -1,4 +1,4 @@
-"""BERTScore-based semantic similarity for the evaluator pipeline."""
+"""BERTScore-based semantic similarity metric."""
 
 from __future__ import annotations
 
@@ -6,6 +6,9 @@ import logging
 import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
+
+from lucid.core.types import MetricResult
+from lucid.metrics import metric_registry
 
 if TYPE_CHECKING:
     from bert_score import BERTScorer
@@ -73,3 +76,24 @@ class BERTScoreChecker:
             result.f1,
         )
         return result
+
+
+@metric_registry.register("bertscore")
+class BERTScoreMetric:
+    """Metric protocol wrapper for BERTScore F1."""
+
+    name: str = "bertscore"
+
+    def __init__(self, model_type: str = "microsoft/deberta-xlarge-mnli") -> None:
+        self._inner = BERTScoreChecker(model_type=model_type)
+
+    def compute(self, original: str, transformed: str) -> MetricResult:
+        result = self._inner.compute(original, transformed)
+        return MetricResult(
+            metric_name=self.name,
+            value=result.f1,
+            metadata={
+                "precision": result.precision,
+                "recall": result.recall,
+            },
+        )

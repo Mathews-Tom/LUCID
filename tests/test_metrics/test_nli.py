@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lucid.evaluator.nli import NLIChecker, NLIResult
+from lucid.metrics.nli import NLIChecker, NLIResult
 
 
 def _make_pipeline_output(
@@ -23,7 +23,7 @@ def _make_pipeline_output(
 
 
 class TestNLIChecker:
-    """Unit tests for NLIChecker — pipeline is mocked, no model downloads."""
+    """Unit tests for NLIChecker -- pipeline is mocked, no model downloads."""
 
     def setup_method(self) -> None:
         self.checker = NLIChecker(
@@ -46,7 +46,7 @@ class TestNLIChecker:
         assert result.backward_label == "entailment"
 
     def test_forward_entailment_backward_neutral(self) -> None:
-        """Forward entails but backward is neutral — asymmetric paraphrase."""
+        """Forward entails but backward is neutral -- asymmetric paraphrase."""
         self.mock_pipeline.side_effect = [
             _make_pipeline_output(entailment=0.85, neutral=0.10, contradiction=0.05),
             _make_pipeline_output(entailment=0.20, neutral=0.70, contradiction=0.10),
@@ -139,16 +139,12 @@ class TestNLIChecker:
             _make_pipeline_output(entailment=0.80, neutral=0.10, contradiction=0.10),
         ]
 
-        # Patch at the site where the local import resolves: builtins.__import__
-        # is overkill; instead, just set the pipeline directly and verify caching.
         checker._pipeline = mock_pipe
 
         checker.check("a", "b")
         checker.check("c", "d")
 
-        # Pipeline was called 4 times total (2 directions x 2 checks)
         assert mock_pipe.call_count == 4
-        # Pipeline reference is the same object — cached, not recreated
         assert checker._pipeline is mock_pipe
 
     def test_lazy_loading_creates_pipeline_on_first_access(self) -> None:
@@ -199,10 +195,7 @@ class TestNLIChecker:
 
 @pytest.mark.integration
 class TestNLICheckerIntegration:
-    """Integration tests — downloads and runs the actual NLI model.
-
-    Run with: pytest -m integration
-    """
+    """Integration tests -- downloads and runs the actual NLI model."""
 
     def setup_method(self) -> None:
         self.checker = NLIChecker(

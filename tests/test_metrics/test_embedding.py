@@ -7,11 +7,11 @@ from unittest.mock import MagicMock, patch
 import numpy as np
 import pytest
 
-from lucid.evaluator.embedding import EmbeddingSimilarity
+from lucid.metrics.embedding import EmbeddingSimilarity
 
 
 class TestEmbeddingSimilarity:
-    """Unit tests — model is mocked, no downloads."""
+    """Unit tests -- model is mocked, no downloads."""
 
     def setup_method(self) -> None:
         self.scorer = EmbeddingSimilarity(model_name="mock-model")
@@ -95,7 +95,7 @@ class TestEmbeddingSimilarity:
 
 @pytest.mark.integration
 class TestEmbeddingSimilarityIntegration:
-    """Integration tests — downloads and runs the real model."""
+    """Integration tests -- downloads and runs the real model."""
 
     def setup_method(self) -> None:
         self.scorer = EmbeddingSimilarity(model_name="sentence-transformers/all-MiniLM-L6-v2")

@@ -1,7 +1,7 @@
-"""NLI-based semantic equivalence checker for the evaluation pipeline.
+"""NLI-based semantic equivalence metric.
 
 Uses a DeBERTa-v3 model fine-tuned on NLI tasks to verify that a paraphrase
-entails — and is entailed by — the original text. Bidirectional entailment
+entails -- and is entailed by -- the original text. Bidirectional entailment
 confirms semantic preservation; contradiction or neutrality flags meaning drift.
 """
 
@@ -11,6 +11,9 @@ import logging
 import threading
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
+
+from lucid.core.types import MetricResult
+from lucid.metrics import metric_registry
 
 if TYPE_CHECKING:
     from transformers.pipelines.text_classification import TextClassificationPipeline
@@ -25,10 +28,10 @@ class NLIResult:
     """Result of bidirectional NLI inference between original and paraphrase.
 
     Args:
-        forward_label: Highest-scoring label for original → paraphrase.
-        backward_label: Highest-scoring label for paraphrase → original.
-        forward_scores: Full label → probability mapping for the forward direction.
-        backward_scores: Full label → probability mapping for the backward direction.
+        forward_label: Highest-scoring label for original -> paraphrase.
+        backward_label: Highest-scoring label for paraphrase -> original.
+        forward_scores: Full label -> probability mapping for the forward direction.
+        backward_scores: Full label -> probability mapping for the backward direction.
     """
 
     forward_label: str
@@ -102,15 +105,7 @@ class NLIChecker:
         )
 
     def _classify(self, premise: str, hypothesis: str) -> dict[str, float]:
-        """Run single-direction NLI classification.
-
-        Args:
-            premise: The text treated as the premise.
-            hypothesis: The text treated as the hypothesis.
-
-        Returns:
-            Mapping of label → probability score.
-        """
+        """Run single-direction NLI classification."""
         raw: list[dict[str, Any]] = self.pipeline(  # type: ignore[assignment]
             {"text": premise, "text_pair": hypothesis},
             top_k=None,
@@ -121,3 +116,36 @@ class NLIChecker:
     def _top_label(scores: dict[str, float]) -> str:
         """Return the label with the highest score."""
         return max(scores, key=scores.__getitem__)
+
+
+@metric_registry.register("nli_entailment")
+class NLIEntailmentMetric:
+    """Metric protocol wrapper for NLI entailment checking."""
+
+    name: str = "nli_entailment"
+
+    def __init__(
+        self,
+        model_name: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c",
+    ) -> None:
+        self._inner = NLIChecker(model_name=model_name, require_bidirectional=True)
+
+    def compute(self, original: str, transformed: str) -> MetricResult:
+        result = self._inner.check(original, transformed)
+        # Score: 1.0 if bidirectional entailment, 0.5 if forward-only, 0.0 otherwise
+        if result.forward_label == "entailment" and result.backward_label == "entailment":
+            score = 1.0
+        elif result.forward_label == "entailment":
+            score = 0.5
+        elif result.forward_label == "contradiction" or result.backward_label == "contradiction":
+            score = 0.0
+        else:
+            score = 0.25
+        return MetricResult(
+            metric_name=self.name,
+            value=score,
+            metadata={
+                "forward_label": result.forward_label,
+                "backward_label": result.backward_label,
+            },
+        )

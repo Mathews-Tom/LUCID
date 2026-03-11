@@ -1,8 +1,7 @@
-"""Cross-cutting term verification for the semantic evaluator.
+"""Cross-cutting term verification metric.
 
 Ensures paraphrases preserve all placeholders and numerical values
-from the original text. Runs as the first check in the evaluation
-pipeline — no model loading, regex only.
+from the original text. Regex only -- no model loading.
 """
 
 from __future__ import annotations
@@ -10,6 +9,9 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
+
+from lucid.core.types import MetricResult
+from lucid.metrics import metric_registry
 
 # Reuse the same placeholder pattern as term_protect.py
 _PLACEHOLDER_RE = re.compile(r"\[(?:MATH|TERM)_(\d{3})\]")
@@ -22,13 +24,6 @@ def _numbers_match(a: str, b: str) -> bool:
     Handles trailing zeros (2.5 vs 2.50), leading zeros (02 vs 2),
     integer/float equivalence (100 vs 100.0), and percentage spacing
     (50% vs 50 %).
-
-    Args:
-        a: First number string (as captured by _NUMBER_RE).
-        b: Second number string (as captured by _NUMBER_RE).
-
-    Returns:
-        True when the numeric values are equivalent.
     """
     a_pct = a.endswith("%")
     b_pct = b.endswith("%")
@@ -111,7 +106,7 @@ class TermVerifier:
         (trailing zeros, leading zeros, int/float equivalence, percent
         spacing) do not cause false rejections.
         """
-        # Normalize "50 %" → "50%" in paraphrase before extraction
+        # Normalize "50 %" -> "50%" in paraphrase before extraction
         normalized_paraphrase = re.sub(r"(\d)\s+%", r"\1%", paraphrase)
         original_numbers = list(_NUMBER_RE.findall(original))
         paraphrase_numbers = list(_NUMBER_RE.findall(normalized_paraphrase))
@@ -122,3 +117,25 @@ class TermVerifier:
                 continue
             missing.append(orig_num)
         return sorted(set(missing))
+
+
+@metric_registry.register("term_preservation")
+class TermPreservationMetric:
+    """Metric protocol wrapper for term/placeholder preservation checking."""
+
+    name: str = "term_preservation"
+
+    def __init__(self) -> None:
+        self._inner = TermVerifier()
+
+    def compute(self, original: str, transformed: str) -> MetricResult:
+        result = self._inner.verify(original, transformed)
+        return MetricResult(
+            metric_name=self.name,
+            value=1.0 if result.passed else 0.0,
+            metadata={
+                "passed": result.passed,
+                "missing_placeholders": list(result.missing_placeholders),
+                "mismatched_numbers": list(result.mismatched_numbers),
+            },
+        )

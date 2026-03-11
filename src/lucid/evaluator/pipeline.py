@@ -16,10 +16,10 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from lucid.evaluator.bertscore import BERTScoreChecker
-from lucid.evaluator.embedding import EmbeddingSimilarity
-from lucid.evaluator.nli import NLIChecker
-from lucid.evaluator.term_verify import TermVerifier
+from lucid.metrics.bertscore import BERTScoreChecker
+from lucid.metrics.embedding import EmbeddingSimilarity
+from lucid.metrics.nli import NLIChecker
+from lucid.metrics.term_verify import TermVerifier
 from lucid.models.results import EvaluationResult
 
 if TYPE_CHECKING:
