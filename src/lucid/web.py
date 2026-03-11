@@ -60,14 +60,14 @@ def run_pipeline(
 
     overrides: dict[str, str] = {}
     if not adversarial:
-        overrides["humanizer.adversarial_iterations"] = "1"
+        overrides["transform.adversarial_iterations"] = "1"
 
     config = load_config(profile=profile, cli_overrides=overrides if overrides else None)
     pipeline = LUCIDPipeline(config)
 
     input_path = Path(file_path)
     output_dir = Path(tempfile.mkdtemp(prefix="lucid_"))
-    output_path = output_dir / (input_path.stem + "_humanized" + input_path.suffix)
+    output_path = output_dir / (input_path.stem + "_transformed" + input_path.suffix)
 
     result = pipeline.run(input_path, output_path=output_path)
 

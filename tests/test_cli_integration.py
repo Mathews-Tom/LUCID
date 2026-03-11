@@ -45,7 +45,7 @@ class TestMainGroup:
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
         assert "detect" in result.output
-        assert "humanize" in result.output
+        assert "transform" in result.output
         assert "pipeline" in result.output
         assert "config" in result.output
         assert "models" in result.output
