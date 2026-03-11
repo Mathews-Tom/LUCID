@@ -376,6 +376,153 @@ def models_cmd(
             console.print(f"  Done: {status.name}")
 
 
+@main.group()
+def bench() -> None:
+    """Benchmark commands."""
+
+
+@bench.command(name="run")
+@click.argument("manifest_path", type=click.Path(exists=True, path_type=Path))
+@click.option("-o", "--output", "output_dir", type=click.Path(path_type=Path), default=None)
+@click.pass_context
+def bench_run(ctx: click.Context, manifest_path: Path, output_dir: Path | None) -> None:
+    """Run a benchmark experiment from a manifest file."""
+    from lucid.bench.datasets import DatasetLoader
+    from lucid.bench.experiment import ExperimentRunner
+    from lucid.bench.manifests import ExperimentManifest
+    from lucid.bench.runner import BenchRunner
+
+    manifest = ExperimentManifest.from_yaml(manifest_path)
+    dataset_path = Path(manifest.dataset)
+
+    if dataset_path.is_dir():
+        samples = DatasetLoader.load_corpus(dataset_path)
+    else:
+        samples = DatasetLoader.load_jsonl(dataset_path)
+
+    runner = ExperimentRunner(manifest)
+    result = runner.run(samples)
+
+    if output_dir is None:
+        output_dir = Path("benchmarks/results") / manifest.name
+
+    bench_runner = BenchRunner(output_dir)
+    bench_runner.save_results(result, output_dir)
+    click.echo(f"Results saved to {output_dir}")
+
+
+@bench.command(name="report")
+@click.argument("results_dir", type=click.Path(exists=True, path_type=Path))
+@click.option(
+    "--format", "output_format",
+    type=click.Choice(["markdown", "csv"]),
+    default="markdown",
+)
+@click.pass_context
+def bench_report(ctx: click.Context, results_dir: Path, output_format: str) -> None:
+    """Generate a report from benchmark results."""
+    import json as json_mod
+
+    from lucid.bench.aggregation import AggregatedMetrics
+    from lucid.bench.experiment import ExperimentResult
+    from lucid.bench.reporting import ReportWriter
+    from lucid.bench.slices import SliceKey
+    from lucid.core.types import DetectionRecord
+
+    detections_path = results_dir / "detections.jsonl"
+    if not detections_path.exists():
+        raise click.BadParameter(f"No detections.jsonl found in {results_dir}")
+
+    detections: list[DetectionRecord] = []
+    with detections_path.open(encoding="utf-8") as fh:
+        for line in fh:
+            stripped = line.strip()
+            if stripped:
+                detections.append(DetectionRecord.from_dict(json_mod.loads(stripped)))
+
+    # Build a minimal ExperimentResult for reporting
+    result = ExperimentResult(
+        manifest_name=results_dir.name,
+        detections=tuple(detections),
+        metrics=(),
+        timestamp="",
+        duration_seconds=0.0,
+    )
+
+    if output_format == "csv":
+        output_path = results_dir / "metrics.csv"
+        ReportWriter.write_metrics_csv(result.metrics, output_path)
+    else:
+        output_path = results_dir / "summary.md"
+        ReportWriter.write_summary_markdown(result, output_path)
+
+    click.echo(f"Report written to {output_path}")
+
+
+@main.command(name="calibrate")
+@click.argument("dataset_path", type=click.Path(exists=True, path_type=Path))
+@click.option("-o", "--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.pass_context
+def calibrate_cmd(ctx: click.Context, dataset_path: Path, output_path: Path | None) -> None:
+    """Calibrate detector scores using a labeled dataset."""
+    from lucid.bench.datasets import DatasetLoader
+    from lucid.detector.calibrate import fit_temperature_scaling
+
+    samples = DatasetLoader.load_jsonl(dataset_path)
+
+    # Extract scores and labels from detection records embedded in metadata
+    scores: list[float] = []
+    labels: list[int] = []
+    for sample in samples:
+        score = sample.metadata.get("score")
+        if score is None:
+            continue
+        scores.append(float(score))
+        label = 1 if sample.source_class in {"ai_raw", "ai_edited_light", "ai_edited_heavy"} else 0
+        labels.append(label)
+
+    if not scores:
+        raise click.ClickException("No samples with 'score' in metadata found for calibration.")
+
+    calibrator = fit_temperature_scaling(scores, labels)
+
+    if output_path is None:
+        output_path = Path("calibration.json")
+    calibrator.save(output_path)
+    click.echo(f"Calibration saved to {output_path}")
+
+
+@main.command(name="explain")
+@click.argument("input_path", type=click.Path(exists=True, path_type=Path))
+@click.pass_context
+def explain_cmd(ctx: click.Context, input_path: Path) -> None:
+    """Explain detection results for a document."""
+    import json as json_mod
+
+    from lucid.detector.explain import DetectionExplainer
+    from lucid.output import OutputFormatter
+    from lucid.pipeline import LUCIDPipeline
+    from lucid.progress import ProgressReporter
+
+    obj = ctx.obj
+    config: LUCIDConfig = obj["config"]
+    console = Console(stderr=True, quiet=obj["quiet"])
+    reporter = ProgressReporter(console, verbose=obj["verbose"], quiet=obj["quiet"])
+
+    files = _resolve_inputs(input_path)
+    pipeline = LUCIDPipeline(config)
+    explainer = DetectionExplainer()
+
+    for fpath in files:
+        reporter.start(total_chunks=0)
+        result = pipeline.run_detect_only(fpath, progress_callback=reporter.callback)
+        reporter.finish(result)
+
+        for chunk_result in result.chunk_results:
+            explanation = explainer.explain(chunk_result.detection)
+            click.echo(json_mod.dumps(explanation, indent=2))
+
+
 @main.command()
 @click.option(
     "--profile",
