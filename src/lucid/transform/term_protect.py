@@ -1,4 +1,4 @@
-"""Term protection for the LUCID humanization pipeline.
+"""Term protection for the LUCID transformation pipeline.
 
 Replaces domain-specific terms, citations, named entities, custom terms,
 numbers, and capitalized multi-word phrases with stable placeholders before
@@ -140,7 +140,7 @@ def _collect_spans_from_patterns(
 
 
 class TermProtector:
-    """Protect domain terms in prose chunks before LLM humanization.
+    """Protect domain terms in prose chunks before LLM transformation.
 
     Lazy-loads the spaCy NER model on first use when ``config.use_ner`` is
     True. The model is cached on the instance after the first load.

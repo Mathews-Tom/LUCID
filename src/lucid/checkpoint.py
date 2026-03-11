@@ -24,7 +24,7 @@ class CheckpointData:
         input_hash: SHA-256 hex digest of the input file content.
         format: Document format (latex, markdown, plaintext).
         profile: Quality profile name (fast, balanced, quality).
-        state: Current pipeline state (e.g. DETECTING, HUMANIZING).
+        state: Current pipeline state (e.g. DETECTING, TRANSFORMING).
         document_result: Accumulated document processing results.
         completed_chunk_ids: Chunk IDs completed per stage.
         failed_chunk_ids: Chunk ID to error message mapping.

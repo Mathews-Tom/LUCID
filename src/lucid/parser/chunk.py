@@ -90,7 +90,7 @@ class Chunk:
 
 @dataclass
 class ProseChunk(Chunk):
-    """Prose content that can be detected and humanized.
+    """Prose content that can be detected and transformed.
 
     The chunk_type is always PROSE — enforced in __post_init__.
 

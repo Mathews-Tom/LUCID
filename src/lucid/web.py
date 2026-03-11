@@ -129,7 +129,7 @@ def create_app() -> Any:
                 with gr.Column():
                     pipeline_text = gr.Textbox(label="Pipeline Report", lines=20, interactive=False)
                     pipeline_download = gr.File(
-                        label="Download Humanized Document", interactive=False
+                        label="Download Transformed Document", interactive=False
                     )
 
             pipeline_btn.click(

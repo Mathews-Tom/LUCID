@@ -111,7 +111,7 @@ class LUCIDDetector:
     def detect_fast(self, chunk: ProseChunk) -> DetectionResult:
         """Lightweight re-scoring using Tier 1 + Tier 2 only (no Binoculars).
 
-        Intended for the adversarial humanization loop where sub-second
+        Intended for the adversarial transformation loop where sub-second
         feedback is needed and models may have been unloaded to free memory.
 
         Args:

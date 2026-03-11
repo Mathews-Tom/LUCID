@@ -87,7 +87,7 @@ class TestPipelineStateEnum:
 
 
 class TestRunDetectOnly:
-    """run_detect_only() parses and detects without humanization."""
+    """run_detect_only() parses and detects without transformation."""
 
     @patch("lucid.pipeline.ModelManager")
     def test_returns_detections(
