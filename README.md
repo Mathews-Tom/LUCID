@@ -6,30 +6,32 @@ Offline-first AI content detection and humanization engine for LaTeX, Markdown, 
 
 ## Features
 
-- **AI Detection** — RoBERTa classifier + statistical features + ensemble scoring
-- **Humanization** — Ollama-powered paraphrasing with adversarial refinement loop
-- **Semantic Evaluation** — MiniLM embedding similarity, DeBERTa NLI entailment, BERTScore quality
+- **AI Detection** — 12-feature statistical detector + RoBERTa classifier + optional Binoculars cross-perplexity + ensemble scoring with score calibration
+- **Transformation** — Ollama-powered paraphrasing with 5 operator strategies, beam search, and term protection (NER + regex)
+- **Semantic Evaluation** — Modular metric checkers: MiniLM embedding similarity, DeBERTa NLI entailment, BERTScore quality, readability, structural preservation, semantic drift, term verification
+- **Explainability** — Per-chunk detection explanations with feature attribution
 - **Format-Preserving** — LaTeX byte-position reconstruction, Markdown line-range replacement, plain text paragraph segmentation
 - **Checkpoint/Resume** — JSON checkpoints after each chunk, resume interrupted runs
 - **Batch Processing** — Process entire directories of documents
+- **Benchmarking** — YAML-manifest-driven experiments with AUROC/AUPRC/ECE metrics and slice-based aggregation
 
 ## Requirements
 
 - Python 3.12+
-- [Ollama](https://ollama.ai) running locally (for humanization)
+- [Ollama](https://ollama.ai) running locally (for transformation)
 - 16GB RAM minimum (32GB recommended for `quality` profile)
 - macOS (Apple Silicon optimized) or Linux x86-64
 
 ## Installation
 
 ```bash
-# Clone and install with uv
-git clone https://github.com/AetherForge/lucid.git
-cd lucid
-uv sync
+# From PyPI
+uv add lucid-ai
 
-# Verify installation
-uv run lucid --version
+# From source
+git clone https://github.com/Mathews-Tom/LUCID.git
+cd LUCID
+uv sync
 ```
 
 ### First-Run Setup
@@ -55,11 +57,21 @@ uv run lucid models --download
 uv run lucid detect paper.tex
 uv run lucid detect paper.tex --output-format json
 
-# Run full pipeline (detect → humanize → evaluate → reconstruct)
-uv run lucid pipeline paper.tex -o paper_humanized.tex
+# Transform AI-detected content
+uv run lucid transform paper.tex -o paper_transformed.tex
 
-# Humanize a document directly
-uv run lucid humanize paper.tex -o paper_humanized.tex
+# Run full pipeline (detect → transform → evaluate → reconstruct)
+uv run lucid pipeline paper.tex -o paper_output.tex
+
+# Calibrate detector scores against labeled data
+uv run lucid calibrate dataset.jsonl -o calibration.json
+
+# Explain detection results with feature attribution
+uv run lucid explain paper.tex
+
+# Run benchmarks
+uv run lucid bench run manifests/experiment.yaml
+uv run lucid bench report results/ -o report.md
 
 # Process a directory of documents
 uv run lucid detect ./papers/
@@ -81,12 +93,15 @@ Global Options:
   --version                          Show version
 
 Commands:
-  detect     Detect AI-generated content in a document
-  humanize   Humanize AI-detected content in a document
-  pipeline   Full detect → humanize → validate pipeline
-  config     View or modify configuration
-  models     Check or download required models
-  setup      First-run setup: check Ollama, download models
+  detect      Detect AI-generated content in a document
+  transform   Transform AI-detected content in a document
+  pipeline    Full detect → transform → evaluate → reconstruct pipeline
+  calibrate   Calibrate detector scores against labeled data
+  explain     Explain detection results with feature attribution
+  bench       Benchmark commands (run, report)
+  config      View or modify configuration
+  models      Check or download required models
+  setup       First-run setup: check Ollama, download models
 ```
 
 ### detect
@@ -98,13 +113,14 @@ lucid detect <INPUT> [OPTIONS]
   -o, --output PATH             Write report to file
 ```
 
-### humanize
+### transform
 
 ```bash
-lucid humanize <INPUT> [OPTIONS]
-  -o, --output PATH                  Output file path
-  --model TEXT                       Override Ollama model tag
-  --adversarial / --no-adversarial   Enable adversarial loop (default: on)
+lucid transform <INPUT> [OPTIONS]
+  -o, --output PATH             Output file path
+  --model TEXT                   Override Ollama model tag
+  --search / --no-search         Enable beam search loop (default: on)
+  --skip-eval                    Skip semantic evaluation
 ```
 
 ### pipeline
@@ -116,6 +132,18 @@ lucid pipeline <INPUT> [OPTIONS]
   --output-format [json|text|annotated]  Report format (default: json)
   --resume / --no-resume             Resume from checkpoint (default: on)
   --checkpoint-dir PATH              Checkpoint directory
+```
+
+### bench
+
+```bash
+lucid bench run <MANIFEST> [OPTIONS]
+  -o, --output-dir PATH         Output directory for results
+  --detector TEXT                 Detector name override
+
+lucid bench report <RESULTS_DIR> [OPTIONS]
+  -o, --output PATH             Report output path
+  --format [json|csv|markdown]   Report format (default: markdown)
 ```
 
 ### setup
@@ -159,14 +187,14 @@ Configuration files: `config/default.toml`, `config/profiles/`.
 |---------|------|----------|---------|
 | Statistical detection | No | Yes | Yes |
 | Binoculars (Tier 3) | No | No | Yes |
-| Adversarial iterations | 1 | 3 | 5 |
+| Search iterations | 1 | 3 | 5 |
 | LaTeX validation | No | Yes | Yes |
 | Embedding threshold | 0.75 | 0.80 | 0.85 |
 | BERTScore threshold | 0.82 | 0.88 | 0.90 |
 
 ## Web UI
 
-LUCID includes an optional Gradio web interface for browser-based detection and humanization.
+LUCID includes an optional Gradio web interface for browser-based detection and transformation.
 
 ```bash
 # Install web extras
@@ -176,7 +204,7 @@ uv sync --extra web
 uv run lucid-web
 ```
 
-The web UI provides two tabs: **Detect** (upload and analyze documents) and **Full Pipeline** (detect, humanize, and download results).
+The web UI provides two tabs: **Detect** (upload and analyze documents) and **Full Pipeline** (detect, transform, and download results).
 
 ## Architecture
 
@@ -184,13 +212,13 @@ The web UI provides two tabs: **Detect** (upload and analyze documents) and **Fu
 Input Document
     │
     ▼
-┌─────────┐     ┌──────────┐     ┌────────────┐     ┌───────────┐     ┌──────────────┐
-│  Parser  │────▶│ Detector │────▶│ Humanizer  │────▶│ Evaluator │────▶│Reconstructor │
-│          │     │          │     │            │     │           │     │              │
-│ LaTeX    │     │ RoBERTa  │     │ Ollama LLM │     │ MiniLM    │     │ Position-    │
-│ Markdown │     │ Stats    │     │ Adversarial│     │ DeBERTa   │     │ based        │
-│ Plain    │     │ Ensemble │     │ Loop       │     │ BERTScore │     │ Replacement  │
-└─────────┘     └──────────┘     └────────────┘     └───────────┘     └──────────────┘
+┌─────────┐     ┌──────────┐     ┌─────────────┐     ┌───────────┐     ┌──────────────┐
+│  Parser  │────▶│ Detector │────▶│ Transformer │────▶│ Evaluator │────▶│Reconstructor │
+│          │     │          │     │             │     │           │     │              │
+│ LaTeX    │     │ 12-feat  │     │ Ollama LLM  │     │ Embedding │     │ Position-    │
+│ Markdown │     │ RoBERTa  │     │ 5 operators │     │ NLI       │     │ based        │
+│ Plain    │     │ Binoculrs│     │ Beam search │     │ BERTScore │     │ Replacement  │
+└─────────┘     └──────────┘     └─────────────┘     └───────────┘     └──────────────┘
     │                                                                         │
     └─────────────── Checkpoint after each chunk ─────────────────────────────┘
 ```
@@ -205,15 +233,49 @@ src/lucid/
 ├── progress.py         # Rich progress reporting
 ├── output.py           # Output formatting (JSON, text, annotated)
 ├── config.py           # TOML config with profile merging
+├── core/               # Shared infrastructure
+│   ├── errors.py       # Error hierarchy
+│   ├── protocols.py    # Detector/Transformer/Evaluator protocols
+│   ├── registry.py     # Component registry
+│   └── types.py        # Shared type definitions
 ├── parser/             # Document parsers (LaTeX, Markdown, plain text)
-├── detector/           # AI detection (RoBERTa, statistical, ensemble)
-├── humanizer/          # Ollama paraphrasing with adversarial refinement
-├── evaluator/          # Semantic evaluation (embedding, NLI, BERTScore)
+├── detector/           # AI detection engine
+│   ├── statistical.py  # 12-feature statistical detector
+│   ├── features.py     # Feature extraction (LM, style, structural, discourse)
+│   ├── roberta.py      # RoBERTa classifier
+│   ├── binoculars.py   # Cross-perplexity detector (Tier 3)
+│   ├── ensemble.py     # Score fusion
+│   ├── calibrate.py    # Score calibration
+│   └── explain.py      # Feature attribution
+├── transform/          # Text transformation
+│   ├── ollama.py       # Async Ollama HTTP client
+│   ├── operators.py    # 5 transformation strategies
+│   ├── prompts.py      # Prompt construction
+│   ├── search.py       # Beam search over operator space
+│   └── term_protect.py # Named entity + regex term protection
+├── evaluator/          # Evaluation pipeline orchestrator
+├── metrics/            # Modular metric checkers
+│   ├── embedding.py    # MiniLM cosine similarity
+│   ├── nli.py          # DeBERTa NLI entailment
+│   ├── bertscore.py    # BERTScore F1
+│   ├── readability.py  # Flesch-Kincaid readability
+│   ├── structure.py    # Structural preservation
+│   ├── drift.py        # Semantic drift detection
+│   └── term_verify.py  # Protected term verification
 ├── reconstructor/      # Format-preserving document reconstruction
-└── models/
-    ├── manager.py      # Model lifecycle management
-    ├── download.py     # Model availability checker and downloader
-    └── results.py      # Result dataclasses
+├── bench/              # Benchmarking framework
+│   ├── datasets.py     # JSONL/corpus data loading
+│   ├── manifests.py    # YAML experiment manifests
+│   ├── slices.py       # Slice-based grouping
+│   ├── aggregation.py  # AUROC, AUPRC, TPR@FPR5, ECE
+│   ├── experiment.py   # Single experiment runner
+│   ├── runner.py       # Batch experiment orchestration
+│   └── reporting.py    # JSON, CSV, Markdown reports
+├── models/
+│   ├── manager.py      # Model lifecycle management
+│   ├── download.py     # Model availability checker and downloader
+│   └── results.py      # Result dataclasses
+└── web.py              # Optional Gradio web interface
 ```
 
 ## Benchmarks
@@ -225,9 +287,13 @@ src/lucid/
 | Evasion rate (adversarial) | >85% |
 | Semantic similarity | >0.85 embedding, >0.88 BERTScore |
 
-Run benchmarks: `uv run pytest tests/benchmarks/ -m benchmark -v`
+```bash
+# Run a benchmark experiment
+uv run lucid bench run benchmarks/manifests/detector_robustness_v1.yaml -o results/
 
-Full results: [docs/benchmarks/](docs/benchmarks/README.md)
+# Generate a report
+uv run lucid bench report results/ -o report.md
+```
 
 ## Development
 
@@ -246,10 +312,6 @@ uv run pytest -m ""
 
 # Lint
 uv run ruff check src/ tests/
-
-# Run example scripts
-uv run python examples/detect_latex.py tests/corpus/latex/simple.tex
-uv run python examples/full_pipeline.py tests/corpus/markdown/simple.md
 
 # Type check
 uv run mypy src/lucid/

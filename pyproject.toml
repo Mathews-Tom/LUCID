@@ -62,9 +62,9 @@ lucid = "lucid.cli:main"
 lucid-web = "lucid.web:main"
 
 [project.urls]
-Homepage = "https://github.com/AetherForge/lucid"
-Repository = "https://github.com/AetherForge/lucid"
-Documentation = "https://github.com/AetherForge/lucid/docs"
+Homepage = "https://github.com/Mathews-Tom/LUCID"
+Repository = "https://github.com/Mathews-Tom/LUCID"
+Documentation = "https://github.com/Mathews-Tom/LUCID/docs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/lucid"]
