@@ -115,8 +115,8 @@ class TransformConfig:
     """Transform engine settings."""
 
     max_retries: int = 3
-    adversarial_iterations: int = 8
-    adversarial_target_score: float = 0.25
+    search_iterations: int = 8
+    search_target_score: float = 0.25
     transform_ambiguous: bool = True
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)

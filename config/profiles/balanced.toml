@@ -2,4 +2,4 @@
 profile = "balanced"
 
 [transform]
-adversarial_iterations = 5
+search_iterations = 5

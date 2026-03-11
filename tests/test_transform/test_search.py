@@ -1,4 +1,4 @@
-"""Tests for the adversarial refinement loop."""
+"""Tests for the transformation search loop."""
 
 from __future__ import annotations
 
@@ -41,8 +41,8 @@ def _make_detection(chunk_id: str, score: float = 0.85) -> DetectionResult:
 
 def _make_config(iterations: int = 3, target: float = 0.25) -> TransformConfig:
     return TransformConfig(
-        adversarial_iterations=iterations,
-        adversarial_target_score=target,
+        search_iterations=iterations,
+        search_target_score=target,
         temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
         term_protection=TermProtectionConfig(
             use_ner=False, protect_citations=False, protect_numbers=False
@@ -189,8 +189,8 @@ class TestAdversarialLoop:
         detection = _make_detection(chunk.id)
         config = _make_config(iterations=3, target=0.25)
         config_with_cite = TransformConfig(
-            adversarial_iterations=3,
-            adversarial_target_score=0.25,
+            search_iterations=3,
+            search_target_score=0.25,
             temperature=config.temperature,
             term_protection=TermProtectionConfig(
                 use_ner=False, protect_citations=True, protect_numbers=False
@@ -290,8 +290,8 @@ class TestAdversarialLoop:
         chunk = _make_chunk(text)
         detection = _make_detection(chunk.id)
         config_with_cite = TransformConfig(
-            adversarial_iterations=2,
-            adversarial_target_score=0.25,
+            search_iterations=2,
+            search_target_score=0.25,
             temperature=TemperatureProfileConfig(),
             term_protection=TermProtectionConfig(
                 use_ner=False, protect_citations=True, protect_numbers=False

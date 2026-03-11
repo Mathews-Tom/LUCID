@@ -198,8 +198,8 @@ class TestLUCIDConfigDefaults:
     def test_transform_defaults(self) -> None:
         """Transform defaults match system-design.md."""
         config = LUCIDConfig()
-        assert config.transform.adversarial_iterations == 8
-        assert config.transform.adversarial_target_score == 0.25
+        assert config.transform.search_iterations == 8
+        assert config.transform.search_target_score == 0.25
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

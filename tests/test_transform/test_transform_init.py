@@ -41,10 +41,10 @@ def _make_detection(chunk_id: str, score: float = 0.85) -> DetectionResult:
 
 
 def _make_configs(
-    adversarial_iterations: int = 1,
+    search_iterations: int = 1,
 ) -> tuple[TransformConfig, OllamaConfig]:
     hconfig = TransformConfig(
-        adversarial_iterations=adversarial_iterations,
+        search_iterations=search_iterations,
         temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
         term_protection=TermProtectionConfig(
             use_ner=False, protect_citations=False, protect_numbers=False
@@ -109,7 +109,7 @@ class TestProtocolConformance:
 class TestSinglePass:
     def test_single_pass_returns_paraphrase_result(self) -> None:
         """Single-pass transform returns a valid TransformResult."""
-        hconfig, oconfig = _make_configs(adversarial_iterations=1)
+        hconfig, oconfig = _make_configs(search_iterations=1)
         detector = MagicMock()
 
         chunk = _make_chunk("The model performs well on benchmarks.")
@@ -149,10 +149,10 @@ class TestSinglePass:
 
     def test_single_pass_raises_on_missing_placeholder(self) -> None:
         """If LLM drops a placeholder, ValueError is raised."""
-        hconfig, oconfig = _make_configs(adversarial_iterations=1)
+        hconfig, oconfig = _make_configs(search_iterations=1)
         # Enable citations so we get placeholders
         hconfig_with_cite = TransformConfig(
-            adversarial_iterations=1,
+            search_iterations=1,
             temperature=hconfig.temperature,
             term_protection=TermProtectionConfig(
                 use_ner=False, protect_citations=True, protect_numbers=False

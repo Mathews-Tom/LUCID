@@ -99,7 +99,7 @@ class LUCIDTransformer:
                 chunk: ProseChunk, detection: DetectionResult
             ) -> TransformResult:
                 async with semaphore:
-                    if self._config.adversarial_iterations > 1:
+                    if self._config.search_iterations > 1:
                         from lucid.transform.search import transformation_search
 
                         return await transformation_search(
@@ -134,7 +134,7 @@ class LUCIDTransformer:
         Runs the full pipeline: term protection -> prompt construction ->
         LLM generation -> placeholder validation -> restoration. Delegates
         to :func:`~lucid.transform.search.transformation_search` when
-        ``adversarial_iterations > 1``.
+        ``search_iterations > 1``.
 
         Args:
             chunk: Prose chunk to transform.
@@ -170,7 +170,7 @@ class LUCIDTransformer:
             timeout=float(self._ollama_config.timeout_seconds),
         ) as client:
             await self._resolve_model(client)
-            if self._config.adversarial_iterations > 1:
+            if self._config.search_iterations > 1:
                 from lucid.transform.search import transformation_search
 
                 return await transformation_search(

@@ -42,14 +42,14 @@ def run_detection(file_path: str, profile: str) -> tuple[str, str]:
 def run_pipeline(
     file_path: str,
     profile: str,
-    adversarial: bool,
+    search: bool,
 ) -> tuple[str, str | None]:
     """Run the full LUCID pipeline on an uploaded file.
 
     Args:
         file_path: Path to uploaded file from Gradio.
         profile: Quality profile name.
-        adversarial: Whether to enable adversarial refinement.
+        search: Whether to enable transformation search loop.
 
     Returns:
         Tuple of (text report, output file path or None).
@@ -59,8 +59,8 @@ def run_pipeline(
     from lucid.pipeline import LUCIDPipeline
 
     overrides: dict[str, str] = {}
-    if not adversarial:
-        overrides["transform.adversarial_iterations"] = "1"
+    if not search:
+        overrides["transform.search_iterations"] = "1"
 
     config = load_config(profile=profile, cli_overrides=overrides if overrides else None)
     pipeline = LUCIDPipeline(config)
@@ -122,8 +122,8 @@ def create_app() -> Any:
                         value="balanced",
                         label="Profile",
                     )
-                    pipeline_adversarial = gr.Checkbox(
-                        label="Enable Adversarial Refinement", value=True,
+                    pipeline_search = gr.Checkbox(
+                        label="Enable Search Loop", value=True,
                     )
                     pipeline_btn = gr.Button("Run Pipeline", variant="primary")
                 with gr.Column():
@@ -134,7 +134,7 @@ def create_app() -> Any:
 
             pipeline_btn.click(
                 fn=run_pipeline,
-                inputs=[pipeline_file, pipeline_profile, pipeline_adversarial],
+                inputs=[pipeline_file, pipeline_profile, pipeline_search],
                 outputs=[pipeline_text, pipeline_download],
             )
 

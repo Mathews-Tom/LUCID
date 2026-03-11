@@ -21,9 +21,9 @@ class TestTransformEffectiveness:
             for i, score in enumerate([0.22, 0.45, 0.18, 0.55, 0.12, 0.38, 0.09])
         ]
 
-        adversarial = [
+        search_results = [
             TransformResult(
-                chunk_id=f"adv-{i}", original_text=f"Text {i}",
+                chunk_id=f"search-{i}", original_text=f"Text {i}",
                 transformed_text=f"Transformed {i}", iteration_count=count,
                 operator_used=op_name, final_detection_score=score,
             )
@@ -38,21 +38,21 @@ class TestTransformEffectiveness:
         threshold = 0.30
         sp_evaded = sum(1 for r in single_pass if r.final_detection_score < threshold)
         sp_rate = sp_evaded / len(single_pass)
-        adv_evaded = sum(1 for r in adversarial if r.final_detection_score < threshold)
-        adv_rate = adv_evaded / len(adversarial)
+        search_evaded = sum(1 for r in search_results if r.final_detection_score < threshold)
+        search_rate = search_evaded / len(search_results)
 
         assert 0.0 <= sp_rate <= 1.0
-        assert 0.0 <= adv_rate <= 1.0
+        assert 0.0 <= search_rate <= 1.0
 
         operators: dict[str, int] = {}
-        for r in adversarial:
+        for r in search_results:
             operators[r.operator_used] = operators.get(r.operator_used, 0) + 1
 
         benchmark_collector.effectiveness = {
             "single_pass_effectiveness_rate": round(sp_rate, 3),
-            "adversarial_effectiveness_rate": round(adv_rate, 3),
+            "search_effectiveness_rate": round(search_rate, 3),
             "mean_iterations": round(
-                sum(r.iteration_count for r in adversarial) / len(adversarial), 1
+                sum(r.iteration_count for r in search_results) / len(search_results), 1
             ),
             "operator_distribution": operators,
         }

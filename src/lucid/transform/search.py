@@ -72,7 +72,7 @@ async def transformation_search(
     best: TransformResult | None = None
     domain = chunk.domain_hint or "general"
 
-    for i in range(config.adversarial_iterations):
+    for i in range(config.search_iterations):
         operator = select_operator(i, placeholder_count=placeholder_count)
 
         prompt = prompt_builder.build(
@@ -153,12 +153,12 @@ async def transformation_search(
             best = candidate
 
         # Early exit
-        if score < config.adversarial_target_score:
+        if score < config.search_target_score:
             logger.info(
                 "Search converged at iteration %d (score=%.3f, target=%.3f)",
                 i + 1,
                 score,
-                config.adversarial_target_score,
+                config.search_target_score,
             )
             return candidate
 
@@ -167,5 +167,5 @@ async def transformation_search(
 
     raise RuntimeError(
         f"No valid transform produced for chunk {chunk.id} "
-        f"after {config.adversarial_iterations} iterations"
+        f"after {config.search_iterations} iterations"
     )

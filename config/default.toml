@@ -36,8 +36,8 @@ ambiguity_triggers_binoculars = true
 
 [transform]
 max_retries = 3
-adversarial_iterations = 8
-adversarial_target_score = 0.25
+search_iterations = 8
+search_target_score = 0.25
 transform_ambiguous = true
 
 [transform.temperature]
