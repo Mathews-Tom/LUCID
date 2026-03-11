@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from lucid.humanizer.strategies import Strategy, select_strategy
+from lucid.transform.strategies import Strategy, select_strategy
 
 
 def test_all_five_strategies_exist() -> None:

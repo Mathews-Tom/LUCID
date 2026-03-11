@@ -9,17 +9,17 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from lucid.humanizer.ollama import GenerateOptions, OllamaError
-from lucid.humanizer.strategies import select_strategy
+from lucid.transform.ollama import GenerateOptions, OllamaError
+from lucid.transform.strategies import select_strategy
 from lucid.models.results import ParaphraseResult
 from lucid.parser.chunk import ProseChunk
 
 if TYPE_CHECKING:
     from lucid.config import HumanizerConfig
     from lucid.detector.base import LUCIDDetector
-    from lucid.humanizer.ollama import OllamaClient
-    from lucid.humanizer.prompts import PromptBuilder
-    from lucid.humanizer.term_protect import TermProtector
+    from lucid.transform.ollama import OllamaClient
+    from lucid.transform.prompts import PromptBuilder
+    from lucid.transform.term_protect import TermProtector
     from lucid.models.results import DetectionResult
 
 logger = logging.getLogger(__name__)

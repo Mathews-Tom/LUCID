@@ -1,4 +1,4 @@
-"""Tests for the PromptBuilder in lucid.humanizer.prompts."""
+"""Tests for the PromptBuilder in lucid.transform.prompts."""
 
 from __future__ import annotations
 
@@ -9,8 +9,8 @@ import pytest
 if TYPE_CHECKING:
     from pathlib import Path
 
-from lucid.humanizer.prompts import ExamplePair, PromptBuilder
-from lucid.humanizer.strategies import Strategy
+from lucid.transform.prompts import ExamplePair, PromptBuilder
+from lucid.transform.strategies import Strategy
 
 # ---------------------------------------------------------------------------
 # Fixtures

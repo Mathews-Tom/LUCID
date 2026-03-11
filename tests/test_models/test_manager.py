@@ -59,7 +59,7 @@ class TestInitializeHumanizer:
         ):
             manager.initialize_humanizer()
 
-    @patch("lucid.humanizer.LUCIDHumanizer")
+    @patch("lucid.transform.LUCIDHumanizer")
     @patch("lucid.detector.base.LUCIDDetector")
     def test_succeeds_after_detector_initialized(
         self,
@@ -180,7 +180,7 @@ class TestShutdown:
     """shutdown() clears all cached references."""
 
     @patch("lucid.evaluator.LUCIDEvaluator")
-    @patch("lucid.humanizer.LUCIDHumanizer")
+    @patch("lucid.transform.LUCIDHumanizer")
     @patch("lucid.detector.base.LUCIDDetector")
     def test_clears_all_refs_and_properties_raise(
         self,

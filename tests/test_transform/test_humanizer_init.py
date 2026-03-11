@@ -14,7 +14,7 @@ from lucid.config import (
     TemperatureProfileConfig,
     TermProtectionConfig,
 )
-from lucid.humanizer import LUCIDHumanizer
+from lucid.transform import LUCIDHumanizer
 from lucid.models.results import DetectionResult, ParaphraseResult
 from lucid.parser.chunk import ProseChunk
 
@@ -123,7 +123,7 @@ class TestSinglePass:
         import asyncio
 
         async def run_with_mock() -> ParaphraseResult:
-            from lucid.humanizer.ollama import OllamaClient
+            from lucid.transform.ollama import OllamaClient
 
             client = OllamaClient.__new__(OllamaClient)
             client._host = "http://localhost:11434"
@@ -170,7 +170,7 @@ class TestSinglePass:
         import asyncio
 
         async def run_with_mock() -> ParaphraseResult:
-            from lucid.humanizer.ollama import OllamaClient
+            from lucid.transform.ollama import OllamaClient
 
             client = OllamaClient.__new__(OllamaClient)
             client._host = "http://localhost:11434"

@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lucid.humanizer.strategies import Strategy
+    from lucid.transform.strategies import Strategy
 
 logger = logging.getLogger(__name__)
 

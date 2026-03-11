@@ -7,7 +7,7 @@ import json
 import httpx
 import pytest
 
-from lucid.humanizer.ollama import (
+from lucid.transform.ollama import (
     GenerateOptions,
     OllamaClient,
     OllamaConnectionError,

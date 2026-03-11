@@ -1,4 +1,4 @@
-"""Tests for the TermProtector in lucid.humanizer.term_protect."""
+"""Tests for the TermProtector in lucid.transform.term_protect."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lucid.config import TermProtectionConfig
-from lucid.humanizer.term_protect import (
+from lucid.transform.term_protect import (
     _CLOSE,
     _OPEN,
     ProtectedText,

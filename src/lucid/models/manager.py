@@ -17,7 +17,7 @@ from lucid.config import LUCIDConfig
 if TYPE_CHECKING:
     from lucid.detector.base import LUCIDDetector
     from lucid.evaluator import LUCIDEvaluator
-    from lucid.humanizer import LUCIDHumanizer
+    from lucid.transform import LUCIDHumanizer
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +55,7 @@ class ModelManager:
         if self._detector is None:
             raise RuntimeError("Detector must be initialized before humanizer")
 
-        from lucid.humanizer import LUCIDHumanizer
+        from lucid.transform import LUCIDHumanizer
 
         self._humanizer = LUCIDHumanizer(
             self._config.humanizer,

@@ -11,10 +11,10 @@ import asyncio
 import logging
 from typing import TYPE_CHECKING
 
-from lucid.humanizer.ollama import GenerateOptions, OllamaClient
-from lucid.humanizer.prompts import PromptBuilder
-from lucid.humanizer.strategies import select_strategy
-from lucid.humanizer.term_protect import TermProtector
+from lucid.transform.ollama import GenerateOptions, OllamaClient
+from lucid.transform.prompts import PromptBuilder
+from lucid.transform.strategies import select_strategy
+from lucid.transform.term_protect import TermProtector
 from lucid.models.results import ParaphraseResult
 
 if TYPE_CHECKING:
@@ -100,7 +100,7 @@ class LUCIDHumanizer:
             ) -> ParaphraseResult:
                 async with semaphore:
                     if self._config.adversarial_iterations > 1:
-                        from lucid.humanizer.adversarial import adversarial_humanize
+                        from lucid.transform.adversarial import adversarial_humanize
 
                         return await adversarial_humanize(
                             chunk=chunk,
@@ -133,7 +133,7 @@ class LUCIDHumanizer:
 
         Runs the full pipeline: term protection → prompt construction →
         LLM generation → placeholder validation → restoration. Delegates
-        to :func:`~lucid.humanizer.adversarial.adversarial_humanize` when
+        to :func:`~lucid.transform.adversarial.adversarial_humanize` when
         ``adversarial_iterations > 1``.
 
         Args:
@@ -171,7 +171,7 @@ class LUCIDHumanizer:
         ) as client:
             await self._resolve_model(client)
             if self._config.adversarial_iterations > 1:
-                from lucid.humanizer.adversarial import adversarial_humanize
+                from lucid.transform.adversarial import adversarial_humanize
 
                 return await adversarial_humanize(
                     chunk=chunk,
