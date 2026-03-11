@@ -1,14 +1,19 @@
 """Unit tests for Binoculars Tier 3 detector scaffolding.
 
-No actual model downloads are performed — all HuggingFace and torch
-dependencies are mocked throughout.
+No actual model downloads are performed — HuggingFace model loading is
+mocked via ``unittest.mock.patch`` on ``transformers`` classes.
+
+IMPORTANT: These tests MUST NOT use ``patch.dict(sys.modules)`` with
+torch stubs. Temporarily replacing ``sys.modules["torch"]`` corrupts
+torch's C-extension state (``_has_torch_function`` docstring error)
+and breaks all downstream tests that import torch transitively
+(spaCy, sentence-transformers, etc.).
 """
 
 from __future__ import annotations
 
 import math
 import sys
-import types
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -36,34 +41,26 @@ def _expected_normalized(raw: float) -> float:
     return max(0.0, min(1.0, 1.0 / (1.0 + math.exp(exponent))))
 
 
-def _make_torch_stub() -> types.ModuleType:
-    """Build a minimal torch stub sufficient for BinocularsDetector._ensure_loaded."""
-    torch_mod = types.ModuleType("torch")
-    torch_mod.float16 = "float16"  # type: ignore[attr-defined]
-    torch_mod.no_grad = MagicMock(return_value=MagicMock(__enter__=MagicMock(return_value=None), __exit__=MagicMock(return_value=False)))  # type: ignore[attr-defined]
-    torch_mod.cuda = MagicMock()  # type: ignore[attr-defined]
-    torch_mod.cuda.is_available = MagicMock(return_value=False)  # type: ignore[attr-defined]
-    return torch_mod
+def _load_detector_via_mock(detector: BinocularsDetector) -> MagicMock:
+    """Call _ensure_loaded with transformers mocked, return the mock model class.
 
-
-def _make_transformers_stub() -> types.ModuleType:
-    """Build a minimal transformers stub with AutoTokenizer and AutoModelForCausalLM."""
-    transformers_mod = types.ModuleType("transformers")
-
-    mock_tokenizer = MagicMock()
+    Patches ``transformers.AutoTokenizer`` and ``transformers.AutoModelForCausalLM``
+    so _ensure_loaded succeeds without downloading real models.  The real torch
+    is imported normally (safe), only model construction is intercepted.
+    """
     mock_model = MagicMock()
     mock_model.eval = MagicMock(return_value=None)
+    mock_model.to = MagicMock(return_value=mock_model)
 
-    auto_tokenizer = MagicMock()
-    auto_tokenizer.from_pretrained = MagicMock(return_value=mock_tokenizer)
+    with (
+        patch("transformers.AutoTokenizer") as mock_tokenizer_cls,
+        patch("transformers.AutoModelForCausalLM") as mock_model_cls,
+    ):
+        mock_model_cls.from_pretrained.return_value = mock_model
+        mock_tokenizer_cls.from_pretrained.return_value = MagicMock()
+        detector._ensure_loaded()
 
-    auto_model = MagicMock()
-    auto_model.from_pretrained = MagicMock(return_value=mock_model)
-
-    transformers_mod.AutoTokenizer = auto_tokenizer  # type: ignore[attr-defined]
-    transformers_mod.AutoModelForCausalLM = auto_model  # type: ignore[attr-defined]
-
-    return transformers_mod
+    return mock_model_cls
 
 
 # ---------------------------------------------------------------------------
@@ -134,30 +131,27 @@ class TestLazyLoading:
         """loaded property returns False before and True after _ensure_loaded."""
         detector = BinocularsDetector()
         assert not detector.loaded
-
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
-
-        with (
-            patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}),
-        ):
-            detector._ensure_loaded()
-
+        _load_detector_via_mock(detector)
         assert detector.loaded is True
 
     def test_ensure_loaded_is_idempotent(self) -> None:
         """Calling _ensure_loaded twice should not attempt model loading twice."""
         detector = BinocularsDetector()
 
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
+        mock_model = MagicMock()
+        mock_model.eval = MagicMock(return_value=None)
+        mock_model.to = MagicMock(return_value=mock_model)
 
-        with patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}):
+        with (
+            patch("transformers.AutoTokenizer") as mock_tokenizer_cls,
+            patch("transformers.AutoModelForCausalLM") as mock_model_cls,
+        ):
+            mock_model_cls.from_pretrained.return_value = mock_model
+            mock_tokenizer_cls.from_pretrained.return_value = MagicMock()
             detector._ensure_loaded()
-            # Second call must not re-invoke from_pretrained
-            call_count_before = transformers_stub.AutoTokenizer.from_pretrained.call_count
+            call_count_before = mock_tokenizer_cls.from_pretrained.call_count
             detector._ensure_loaded()
-            assert transformers_stub.AutoTokenizer.from_pretrained.call_count == call_count_before
+            assert mock_tokenizer_cls.from_pretrained.call_count == call_count_before
 
 
 # ---------------------------------------------------------------------------
@@ -171,27 +165,16 @@ class TestUnload:
     def test_unload_sets_loaded_false(self) -> None:
         """After unload(), loaded property must be False."""
         detector = BinocularsDetector()
-
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
-
-        with patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}):
-            detector._ensure_loaded()
-            assert detector.loaded is True
-            detector.unload()
-
+        _load_detector_via_mock(detector)
+        assert detector.loaded is True
+        detector.unload()
         assert detector.loaded is False
 
     def test_unload_clears_model_references(self) -> None:
         """After unload(), internal model attributes must be None."""
         detector = BinocularsDetector()
-
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
-
-        with patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}):
-            detector._ensure_loaded()
-            detector.unload()
+        _load_detector_via_mock(detector)
+        detector.unload()
 
         assert detector._observer is None
         assert detector._performer is None
@@ -200,24 +183,20 @@ class TestUnload:
     def test_unload_without_loading_is_safe(self) -> None:
         """unload() on a never-loaded detector must not raise."""
         detector = BinocularsDetector()
-        # torch not needed for unload on an unloaded detector
-        with patch.dict(sys.modules, {}):
-            detector.unload()  # must not raise
+        detector.unload()  # must not raise
         assert detector.loaded is False
 
     def test_unload_cuda_cache_cleared_when_available(self) -> None:
         """unload() calls torch.cuda.empty_cache() when CUDA is available."""
         detector = BinocularsDetector()
+        _load_detector_via_mock(detector)
 
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
-
-        with patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}):
-            detector._ensure_loaded()
-            torch_stub.cuda.is_available = MagicMock(return_value=True)  # type: ignore[attr-defined]
-            torch_stub.cuda.empty_cache = MagicMock()  # type: ignore[attr-defined]
+        with (
+            patch("torch.cuda.is_available", return_value=True),
+            patch("torch.cuda.empty_cache") as mock_empty_cache,
+        ):
             detector.unload()
-            torch_stub.cuda.empty_cache.assert_called_once()
+            mock_empty_cache.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -229,33 +208,47 @@ class TestBinocularsUnavailableError:
     """score() raises BinocularsUnavailableError when torch is absent."""
 
     def test_raises_when_torch_missing(self) -> None:
-        """ImportError for torch must be converted to BinocularsUnavailableError."""
-        detector = BinocularsDetector()
+        """ImportError for torch must be converted to BinocularsUnavailableError.
 
-        # Remove torch from sys.modules to simulate it being absent
-        saved = sys.modules.pop("torch", None)
-        saved_transformers = sys.modules.pop("transformers", None)
-        try:
-            with pytest.raises(BinocularsUnavailableError, match="torch and transformers required"):
-                detector._ensure_loaded()
-        finally:
-            if saved is not None:
-                sys.modules["torch"] = saved
-            if saved_transformers is not None:
-                sys.modules["transformers"] = saved_transformers
+        Runs in a subprocess to avoid corrupting torch's C-extension state
+        in the test process.
+        """
+        import subprocess
+        import textwrap
+
+        script = textwrap.dedent("""\
+            import sys
+            sys.modules['torch'] = None
+            sys.modules['transformers'] = None
+            from lucid.detector.binoculars import BinocularsDetector
+            from lucid.core.errors import BinocularsUnavailableError
+            d = BinocularsDetector()
+            try:
+                d._ensure_loaded()
+                sys.exit(1)
+            except BinocularsUnavailableError as e:
+                assert 'torch and transformers required' in str(e)
+                sys.exit(0)
+        """)
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert result.returncode == 0, f"Subprocess failed: {result.stderr}"
 
     def test_raises_when_model_load_fails(self) -> None:
         """Exceptions during model loading must be wrapped in BinocularsUnavailableError."""
         detector = BinocularsDetector()
 
-        torch_stub = _make_torch_stub()
-        transformers_stub = _make_transformers_stub()
-        transformers_stub.AutoModelForCausalLM.from_pretrained.side_effect = RuntimeError("OOM")
-
         with (
-            patch.dict(sys.modules, {"torch": torch_stub, "transformers": transformers_stub}),
+            patch("transformers.AutoTokenizer") as mock_tokenizer_cls,
+            patch("transformers.AutoModelForCausalLM") as mock_model_cls,
             pytest.raises(BinocularsUnavailableError, match="Failed to load Binoculars models"),
         ):
+            mock_tokenizer_cls.from_pretrained.return_value = MagicMock()
+            mock_model_cls.from_pretrained.side_effect = RuntimeError("OOM")
             detector._ensure_loaded()
 
     def test_unavailable_error_is_detector_error(self) -> None:

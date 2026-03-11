@@ -23,7 +23,8 @@ def test_restructure_modifier() -> None:
 
 def test_voice_shift_modifier() -> None:
     assert Operator.VOICE_SHIFT.prompt_modifier == (
-        "Rewrite using more active voice. Add hedging language like 'it seems' or 'arguably'."
+        "Rewrite using more active voice constructions."
+        " Vary between formal and conversational register within the same passage."
     )
 
 

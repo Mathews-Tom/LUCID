@@ -148,9 +148,10 @@ class TestRunFullPipeline:
 
         # Detector returns ai_generated for all chunks
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
-        mock_transformer.transform.side_effect = (
-            lambda chunk, _det: _make_transform(chunk.id, chunk.text)
-        )
+        # Pipeline calls transform_batch, which returns a list of results
+        mock_transformer.transform_batch.side_effect = lambda pairs: [
+            _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
+        ]
         mock_evaluator.evaluate_chunk.side_effect = (
             lambda cid, _orig, _hum: _make_evaluation(cid)
         )
@@ -265,7 +266,10 @@ class TestErrorIsolation:
         mock_mgr.evaluator = mock_evaluator
 
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
-        mock_transformer.transform.side_effect = RuntimeError("Ollama timeout")
+        # Pipeline calls transform_batch; return exceptions to simulate failures
+        mock_transformer.transform_batch.side_effect = lambda pairs: [
+            RuntimeError("Ollama timeout") for _ in pairs
+        ]
 
         pipeline = LUCIDPipeline(config)
         result = pipeline.run(md_input, output_path=tmp_path / "out.md")
