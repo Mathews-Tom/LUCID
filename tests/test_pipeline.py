@@ -12,7 +12,7 @@ from lucid.models.results import (
     DetectionResult,
     DocumentResult,
     EvaluationResult,
-    ParaphraseResult,
+    TransformResult,
 )
 from lucid.pipeline import LUCIDPipeline, PipelineState
 from lucid.progress import PipelineEvent
@@ -45,13 +45,13 @@ def _make_detection(chunk_id: str, classification: str = "ai_generated") -> Dete
     )
 
 
-def _make_paraphrase(chunk_id: str, original: str) -> ParaphraseResult:
-    return ParaphraseResult(
+def _make_transform(chunk_id: str, original: str) -> TransformResult:
+    return TransformResult(
         chunk_id=chunk_id,
         original_text=original,
-        humanized_text=f"Humanized: {original}",
+        transformed_text=f"Transformed: {original}",
         iteration_count=1,
-        strategy_used="lexical_diversity",
+        operator_used="lexical_diversity",
         final_detection_score=0.15,
     )
 
@@ -78,7 +78,7 @@ class TestPipelineStateEnum:
         states = {s.value for s in PipelineState}
         assert "PARSING" in states
         assert "DETECTING" in states
-        assert "HUMANIZING" in states
+        assert "TRANSFORMING" in states
         assert "EVALUATING" in states
         assert "RECONSTRUCTING" in states
         assert "VALIDATING" in states
@@ -87,7 +87,7 @@ class TestPipelineStateEnum:
 
 
 class TestRunDetectOnly:
-    """run_detect_only() parses and detects without humanization."""
+    """run_detect_only() parses and detects without transformation."""
 
     @patch("lucid.pipeline.ModelManager")
     def test_returns_detections(
@@ -118,7 +118,7 @@ class TestRunDetectOnly:
 
 
 class TestRunFullPipeline:
-    """run() executes the full detect-humanize-evaluate-reconstruct flow."""
+    """run() executes the full detect-transform-evaluate-reconstruct flow."""
 
     @patch("lucid.pipeline.validate_markdown")
     @patch("lucid.pipeline.ModelManager")
@@ -136,20 +136,20 @@ class TestRunFullPipeline:
 
         mock_mgr = mock_manager_cls.return_value
         mock_detector = MagicMock()
-        mock_humanizer = MagicMock()
+        mock_transformer = MagicMock()
         mock_evaluator = MagicMock()
 
         mock_mgr.initialize_detector.return_value = mock_detector
-        mock_mgr.initialize_humanizer.return_value = mock_humanizer
+        mock_mgr.initialize_transformer.return_value = mock_transformer
         mock_mgr.initialize_evaluator.return_value = mock_evaluator
         mock_mgr.detector = mock_detector
-        mock_mgr.humanizer = mock_humanizer
+        mock_mgr.transformer = mock_transformer
         mock_mgr.evaluator = mock_evaluator
 
         # Detector returns ai_generated for all chunks
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
-        mock_humanizer.humanize.side_effect = (
-            lambda chunk, _det: _make_paraphrase(chunk.id, chunk.text)
+        mock_transformer.transform.side_effect = (
+            lambda chunk, _det: _make_transform(chunk.id, chunk.text)
         )
         mock_evaluator.evaluate_chunk.side_effect = (
             lambda cid, _orig, _hum: _make_evaluation(cid)
@@ -162,7 +162,7 @@ class TestRunFullPipeline:
         assert result.output_path == str(output)
         assert output.exists()
         assert len(result.detections) > 0
-        assert len(result.paraphrases) > 0
+        assert len(result.transforms) > 0
         assert len(result.evaluations) > 0
         assert result.summary_stats["total_chunks"] > 0
         mock_mgr.shutdown.assert_called_once()
@@ -254,30 +254,30 @@ class TestErrorIsolation:
 
         mock_mgr = mock_manager_cls.return_value
         mock_detector = MagicMock()
-        mock_humanizer = MagicMock()
+        mock_transformer = MagicMock()
         mock_evaluator = MagicMock()
 
         mock_mgr.initialize_detector.return_value = mock_detector
-        mock_mgr.initialize_humanizer.return_value = mock_humanizer
+        mock_mgr.initialize_transformer.return_value = mock_transformer
         mock_mgr.initialize_evaluator.return_value = mock_evaluator
         mock_mgr.detector = mock_detector
-        mock_mgr.humanizer = mock_humanizer
+        mock_mgr.transformer = mock_transformer
         mock_mgr.evaluator = mock_evaluator
 
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
-        mock_humanizer.humanize.side_effect = RuntimeError("Ollama timeout")
+        mock_transformer.transform.side_effect = RuntimeError("Ollama timeout")
 
         pipeline = LUCIDPipeline(config)
         result = pipeline.run(md_input, output_path=tmp_path / "out.md")
 
-        # Pipeline completes despite humanization failures
+        # Pipeline completes despite transformation failures
         assert len(result.detections) > 0
-        assert len(result.paraphrases) == 0
+        assert len(result.transforms) == 0
         assert result.summary_stats["failed"] > 0
 
 
 class TestDefaultOutputPath:
-    """Output path defaults to {stem}_humanized.{ext}."""
+    """Output path defaults to {stem}_transformed.{ext}."""
 
     @patch("lucid.pipeline.validate_markdown")
     @patch("lucid.pipeline.ModelManager")
@@ -306,4 +306,4 @@ class TestDefaultOutputPath:
         result = pipeline.run(md_input)
 
         assert result.output_path is not None
-        assert "_humanized" in result.output_path
+        assert "_transformed" in result.output_path

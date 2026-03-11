@@ -45,7 +45,7 @@ class TestMainGroup:
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
         assert "detect" in result.output
-        assert "humanize" in result.output
+        assert "transform" in result.output
         assert "pipeline" in result.output
         assert "config" in result.output
         assert "models" in result.output
@@ -125,7 +125,7 @@ class TestPipelineCommand:
                 "total_chunks": 1,
                 "prose_chunks": 1,
                 "ai_detected": 0,
-                "humanized": 0,
+                "transformed": 0,
                 "eval_passed": 0,
                 "eval_failed": 0,
                 "failed": 0,

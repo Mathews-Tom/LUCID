@@ -1,4 +1,4 @@
-"""Prompt construction for the LUCID humanization pipeline.
+"""Prompt construction for the LUCID transformation pipeline.
 
 Assembles system prompt + strategy modifier + few-shot examples + input
 text into a complete prompt string for Ollama generation.
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lucid.humanizer.strategies import Strategy
+    from lucid.transform.operators import Operator
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ class ExamplePair:
 
 
 class PromptBuilder:
-    """Construct prompts for humanization using strategy + few-shot examples.
+    """Construct prompts for transformation using operator + few-shot examples.
 
     Loads few-shot examples from TOML files in ``examples_dir``. Each TOML
     file is named ``{domain}.toml`` and contains a ``[[pairs]]`` array.
@@ -86,7 +86,7 @@ class PromptBuilder:
     def build(
         self,
         protected_text: str,
-        strategy: Strategy,
+        strategy: Operator,
         domain: str,
         profile: str,
         placeholders: list[str] | None = None,
@@ -95,7 +95,7 @@ class PromptBuilder:
 
         Args:
             protected_text: Prose text with placeholders substituted.
-            strategy: Current humanization strategy.
+            operator: Current transformation operator.
             domain: Content domain (``"stem"``, ``"humanities"``, ``"business"``,
                 ``"general"``).
             profile: Quality profile (``"fast"``, ``"balanced"``, ``"quality"``).

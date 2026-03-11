@@ -1,4 +1,4 @@
-"""Result data models for detection, paraphrase, evaluation, and document processing."""
+"""Result data models for detection, transform, evaluation, and document processing."""
 
 from __future__ import annotations
 
@@ -80,23 +80,23 @@ class DetectionResult:
 
 
 @dataclass
-class ParaphraseResult:
-    """Result of humanizing a single chunk.
+class TransformResult:
+    """Result of transforming a single chunk.
 
     Args:
-        chunk_id: ID of the chunk that was paraphrased.
-        original_text: The original prose text before humanization.
-        humanized_text: The paraphrased output text.
-        iteration_count: Number of adversarial iterations performed.
-        strategy_used: Name of the final strategy that produced the output.
-        final_detection_score: Detection score of the humanized text in [0.0, 1.0].
+        chunk_id: ID of the chunk that was transformed.
+        original_text: The original prose text before transformation.
+        transformed_text: The transformed output text.
+        iteration_count: Number of search iterations performed.
+        operator_used: Name of the final operator that produced the output.
+        final_detection_score: Detection score of the transformed text in [0.0, 1.0].
     """
 
     chunk_id: str
     original_text: str
-    humanized_text: str
+    transformed_text: str
     iteration_count: int
-    strategy_used: str
+    operator_used: str
     final_detection_score: float
 
     def __post_init__(self) -> None:
@@ -109,21 +109,21 @@ class ParaphraseResult:
         return {
             "chunk_id": self.chunk_id,
             "original_text": self.original_text,
-            "humanized_text": self.humanized_text,
+            "transformed_text": self.transformed_text,
             "iteration_count": self.iteration_count,
-            "strategy_used": self.strategy_used,
+            "operator_used": self.operator_used,
             "final_detection_score": self.final_detection_score,
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> ParaphraseResult:
+    def from_dict(cls, data: dict[str, Any]) -> TransformResult:
         """Deserialize from dictionary."""
         return cls(
             chunk_id=data["chunk_id"],
             original_text=data["original_text"],
-            humanized_text=data["humanized_text"],
+            transformed_text=data["transformed_text"],
             iteration_count=data["iteration_count"],
-            strategy_used=data["strategy_used"],
+            operator_used=data["operator_used"],
             final_detection_score=data["final_detection_score"],
         )
 
@@ -198,8 +198,8 @@ class DocumentResult:
         format: Document format ("latex", "markdown", "plaintext").
         chunks: All parsed chunks in document order.
         detections: Detection results for prose chunks.
-        paraphrases: Paraphrase results for humanized chunks.
-        evaluations: Evaluation results for paraphrased chunks.
+        transforms: Transform results for processed chunks.
+        evaluations: Evaluation results for transformed chunks.
         compilation_valid: Whether the reconstructed document compiles.
         output_path: Path to the output document (set after reconstruction).
         summary_stats: Aggregate statistics for reporting.
@@ -209,7 +209,7 @@ class DocumentResult:
     format: str
     chunks: list[Chunk] = field(default_factory=list)
     detections: list[DetectionResult] = field(default_factory=list)
-    paraphrases: list[ParaphraseResult] = field(default_factory=list)
+    transforms: list[TransformResult] = field(default_factory=list)
     evaluations: list[EvaluationResult] = field(default_factory=list)
     compilation_valid: bool | None = None
     output_path: str | None = None
@@ -226,7 +226,7 @@ class DocumentResult:
             "format": self.format,
             "chunks": [c.to_dict() for c in self.chunks],
             "detections": [d.to_dict() for d in self.detections],
-            "paraphrases": [p.to_dict() for p in self.paraphrases],
+            "transforms": [p.to_dict() for p in self.transforms],
             "evaluations": [e.to_dict() for e in self.evaluations],
             "compilation_valid": self.compilation_valid,
             "output_path": self.output_path,
@@ -241,7 +241,7 @@ class DocumentResult:
             format=data["format"],
             chunks=[_chunk_from_dict(c) for c in data.get("chunks", [])],
             detections=[DetectionResult.from_dict(d) for d in data.get("detections", [])],
-            paraphrases=[ParaphraseResult.from_dict(p) for p in data.get("paraphrases", [])],
+            transforms=[TransformResult.from_dict(p) for p in data.get("transforms", [])],
             evaluations=[EvaluationResult.from_dict(e) for e in data.get("evaluations", [])],
             compilation_valid=data.get("compilation_valid"),
             output_path=data.get("output_path"),

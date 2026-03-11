@@ -1,5 +1,5 @@
 [general]
 profile = "balanced"
 
-[humanizer]
-adversarial_iterations = 5
+[transform]
+search_iterations = 5

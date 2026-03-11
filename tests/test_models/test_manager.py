@@ -49,45 +49,45 @@ class TestDetectorProperty:
             _ = manager.detector
 
 
-class TestInitializeHumanizer:
-    """initialize_humanizer() requires detector and creates humanizer."""
+class TestInitializeTransformer:
+    """initialize_transformer() requires detector and creates transformer."""
 
     def test_raises_without_detector(self, manager: ModelManager) -> None:
         """RuntimeError when detector has not been initialized first."""
         with pytest.raises(
-            RuntimeError, match="Detector must be initialized before humanizer"
+            RuntimeError, match="Detector must be initialized before transformer"
         ):
-            manager.initialize_humanizer()
+            manager.initialize_transformer()
 
-    @patch("lucid.humanizer.LUCIDHumanizer")
+    @patch("lucid.transform.LUCIDTransformer")
     @patch("lucid.detector.base.LUCIDDetector")
     def test_succeeds_after_detector_initialized(
         self,
         mock_detector_cls: MagicMock,
-        mock_humanizer_cls: MagicMock,
+        mock_transformer_cls: MagicMock,
         manager: ModelManager,
     ) -> None:
-        """Humanizer is created with the correct arguments after detector init."""
+        """Transformer is created with the correct arguments after detector init."""
         manager.initialize_detector()
-        result = manager.initialize_humanizer()
+        result = manager.initialize_transformer()
 
-        mock_humanizer_cls.assert_called_once_with(
-            manager._config.humanizer,
+        mock_transformer_cls.assert_called_once_with(
+            manager._config.transform,
             manager._config.ollama,
             mock_detector_cls.return_value,
             manager._config.general.profile,
         )
-        assert result is mock_humanizer_cls.return_value
-        assert manager._humanizer is mock_humanizer_cls.return_value
+        assert result is mock_transformer_cls.return_value
+        assert manager._transformer is mock_transformer_cls.return_value
 
 
-class TestHumanizerProperty:
-    """humanizer property accessor."""
+class TestTransformerProperty:
+    """transformer property accessor."""
 
     def test_raises_when_not_initialized(self, manager: ModelManager) -> None:
-        """Property raises RuntimeError before initialize_humanizer()."""
-        with pytest.raises(RuntimeError, match="Humanizer not initialized"):
-            _ = manager.humanizer
+        """Property raises RuntimeError before initialize_transformer()."""
+        with pytest.raises(RuntimeError, match="Transformer not initialized"):
+            _ = manager.transformer
 
 
 class TestInitializeEvaluator:
@@ -180,29 +180,29 @@ class TestShutdown:
     """shutdown() clears all cached references."""
 
     @patch("lucid.evaluator.LUCIDEvaluator")
-    @patch("lucid.humanizer.LUCIDHumanizer")
+    @patch("lucid.transform.LUCIDTransformer")
     @patch("lucid.detector.base.LUCIDDetector")
     def test_clears_all_refs_and_properties_raise(
         self,
         _mock_detector: MagicMock,
-        _mock_humanizer: MagicMock,
+        _mock_transformer: MagicMock,
         _mock_evaluator: MagicMock,
         manager: ModelManager,
     ) -> None:
         """After shutdown, all three properties raise RuntimeError."""
         manager.initialize_detector()
-        manager.initialize_humanizer()
+        manager.initialize_transformer()
         manager.initialize_evaluator()
 
         manager.shutdown()
 
         assert manager._detector is None
-        assert manager._humanizer is None
+        assert manager._transformer is None
         assert manager._evaluator is None
 
         with pytest.raises(RuntimeError):
             _ = manager.detector
         with pytest.raises(RuntimeError):
-            _ = manager.humanizer
+            _ = manager.transformer
         with pytest.raises(RuntimeError):
             _ = manager.evaluator

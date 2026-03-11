@@ -67,7 +67,7 @@ def main(
     quiet: bool,
     log_file: Path | None,
 ) -> None:
-    """LUCID -- AI content detection and humanization engine."""
+    """LUCID -- AI content detection and transformation engine."""
     ctx.ensure_object(dict)
     cfg = load_config(profile=profile, user_config_path=config_path)
     ctx.obj = {
@@ -155,27 +155,27 @@ def detect(
         reporter.finish(result)
 
 
-@main.command()
+@main.command(name="transform")
 @click.argument("input_path", type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "output_path", type=click.Path(path_type=Path), default=None)
 @click.option("--model", default=None, help="Override Ollama model tag.")
-@click.option("--adversarial/--no-adversarial", default=True, help="Enable adversarial loop.")
+@click.option("--search/--no-search", default=True, help="Enable search loop.")
 @click.option(
     "--skip-eval",
     is_flag=True,
     default=False,
-    help="Skip semantic evaluation and apply all humanized text directly.",
+    help="Skip semantic evaluation and apply all transformed text directly.",
 )
 @click.pass_context
-def humanize(
+def transform_cmd(
     ctx: click.Context,
     input_path: Path,
     output_path: Path | None,
     model: str | None,
-    adversarial: bool,
+    search: bool,
     skip_eval: bool,
 ) -> None:
-    """Humanize AI-generated content in a document."""
+    """Transform AI-generated content in a document."""
     from lucid.pipeline import LUCIDPipeline
     from lucid.progress import ProgressReporter
 
@@ -186,8 +186,8 @@ def humanize(
     overrides: dict[str, str] = {}
     if model is not None:
         overrides[f"ollama.models.{config.general.profile}"] = model
-    if not adversarial:
-        overrides["humanizer.adversarial_iterations"] = "1"
+    if not search:
+        overrides["transform.search_iterations"] = "1"
     if overrides:
         config = load_config(profile=config.general.profile, cli_overrides=overrides)
 
@@ -228,7 +228,7 @@ def humanize(
     "--skip-eval",
     is_flag=True,
     default=False,
-    help="Skip semantic evaluation and apply all humanized text directly.",
+    help="Skip semantic evaluation and apply all transformed text directly.",
 )
 @click.pass_context
 def pipeline_cmd(
@@ -241,7 +241,7 @@ def pipeline_cmd(
     checkpoint_dir: Path | None,
     skip_eval: bool,
 ) -> None:
-    """Run the full detect-humanize-reconstruct pipeline."""
+    """Run the full detect-transform-reconstruct pipeline."""
     from lucid.output import OutputFormatter
     from lucid.pipeline import LUCIDPipeline
     from lucid.progress import ProgressReporter

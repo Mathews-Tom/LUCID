@@ -7,9 +7,9 @@ timeout_seconds = 30
 [detection]
 use_statistical = false
 
-[humanizer]
+[transform]
 max_retries = 1
-adversarial_iterations = 1
+search_iterations = 1
 
 [evaluator]
 embedding_threshold = 0.75

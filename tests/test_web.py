@@ -65,7 +65,7 @@ class TestRunPipeline:
                 "total_chunks": 1,
                 "prose_chunks": 1,
                 "ai_detected": 0,
-                "humanized": 0,
+                "transformed": 0,
                 "eval_passed": 0,
                 "eval_failed": 0,
                 "failed": 0,
@@ -80,8 +80,8 @@ class TestRunPipeline:
         assert "LUCID Pipeline Report" in text_report
 
     @patch("lucid.pipeline.LUCIDPipeline")
-    def test_no_adversarial(self, mock_pipeline_cls: MagicMock, tmp_path: Path) -> None:
-        """Pipeline runs with adversarial disabled."""
+    def test_no_search(self, mock_pipeline_cls: MagicMock, tmp_path: Path) -> None:
+        """Pipeline runs with search disabled."""
         from lucid.web import run_pipeline
 
         mock_pipeline = mock_pipeline_cls.return_value

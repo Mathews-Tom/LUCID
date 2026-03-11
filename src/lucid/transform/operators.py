@@ -1,12 +1,12 @@
-"""Humanization strategies for adversarial paraphrase generation."""
+"""Transform operators for search-based paraphrase generation."""
 
 from __future__ import annotations
 
 from enum import Enum
 
 
-class Strategy(Enum):
-    """Humanization strategy applied per adversarial iteration."""
+class Operator(Enum):
+    """Transform operator applied per search iteration."""
 
     STANDARD = ""
     RESTRUCTURE = (
@@ -22,16 +22,16 @@ class Strategy(Enum):
 
     @property
     def prompt_modifier(self) -> str:
-        """Return the strategy-specific prompt modifier string."""
+        """Return the operator-specific prompt modifier string."""
         return self.value
 
 
-def select_strategy(iteration: int, placeholder_count: int = 0) -> Strategy:
-    """Select a strategy via round-robin over the iteration index.
+def select_operator(iteration: int, placeholder_count: int = 0) -> Operator:
+    """Select an operator via round-robin over the iteration index.
 
     Skips REORDER when placeholder_count > 3 to reduce placeholder drops.
     """
-    members = list(Strategy)
+    members = list(Operator)
     if placeholder_count > 3:
-        members = [s for s in members if s != Strategy.REORDER]
+        members = [s for s in members if s != Operator.REORDER]
     return members[iteration % len(members)]

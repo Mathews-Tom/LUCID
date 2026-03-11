@@ -1,4 +1,4 @@
-"""Tests for the adversarial refinement loop."""
+"""Tests for the transformation search loop."""
 
 from __future__ import annotations
 
@@ -8,20 +8,20 @@ from unittest.mock import MagicMock
 import pytest
 
 from lucid.config import (
-    HumanizerConfig,
+    TransformConfig,
     TemperatureProfileConfig,
     TermProtectionConfig,
 )
-from lucid.humanizer.adversarial import adversarial_humanize
-from lucid.humanizer.ollama import (
+from lucid.transform.search import transformation_search
+from lucid.transform.ollama import (
     GenerateResult,
     OllamaClient,
     OllamaConnectionError,
 )
-from lucid.humanizer.prompts import PromptBuilder
-from lucid.humanizer.strategies import Strategy
-from lucid.humanizer.term_protect import TermProtector
-from lucid.models.results import DetectionResult, ParaphraseResult
+from lucid.transform.prompts import PromptBuilder
+from lucid.transform.operators import Operator
+from lucid.transform.term_protect import TermProtector
+from lucid.models.results import DetectionResult, TransformResult
 from lucid.parser.chunk import ProseChunk
 
 # ---------------------------------------------------------------------------
@@ -39,10 +39,10 @@ def _make_detection(chunk_id: str, score: float = 0.85) -> DetectionResult:
     )
 
 
-def _make_config(iterations: int = 3, target: float = 0.25) -> HumanizerConfig:
-    return HumanizerConfig(
-        adversarial_iterations=iterations,
-        adversarial_target_score=target,
+def _make_config(iterations: int = 3, target: float = 0.25) -> TransformConfig:
+    return TransformConfig(
+        search_iterations=iterations,
+        search_target_score=target,
         temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
         term_protection=TermProtectionConfig(
             use_ner=False, protect_citations=False, protect_numbers=False
@@ -111,13 +111,13 @@ class TestAdversarialLoop:
         prompt_builder = PromptBuilder(examples_dir=None)
 
         result = asyncio.run(
-            adversarial_humanize(
+            transformation_search(
                 chunk, detection, client, detector, term_protector,
                 prompt_builder, config, "phi3:3.8b", "fast",
             )
         )
 
-        assert isinstance(result, ParaphraseResult)
+        assert isinstance(result, TransformResult)
         assert result.final_detection_score == 0.20
         assert result.iteration_count == 2  # Early exit at iteration 2
 
@@ -135,7 +135,7 @@ class TestAdversarialLoop:
         prompt_builder = PromptBuilder(examples_dir=None)
 
         result = asyncio.run(
-            adversarial_humanize(
+            transformation_search(
                 chunk, detection, client, detector, term_protector,
                 prompt_builder, config, "phi3:3.8b", "fast",
             )
@@ -169,7 +169,7 @@ class TestAdversarialLoop:
         prompt_builder = PromptBuilder(examples_dir=None)
 
         asyncio.run(
-            adversarial_humanize(
+            transformation_search(
                 chunk, detection, client, detector, term_protector,
                 prompt_builder, config, "phi3:3.8b", "fast",
             )
@@ -179,8 +179,8 @@ class TestAdversarialLoop:
         assert len(prompts_seen) == 5
 
         # Iteration 0 = STANDARD (no modifier), iteration 1 = RESTRUCTURE, etc.
-        assert Strategy.RESTRUCTURE.prompt_modifier in prompts_seen[1]
-        assert Strategy.VOICE_SHIFT.prompt_modifier in prompts_seen[2]
+        assert Operator.RESTRUCTURE.prompt_modifier in prompts_seen[1]
+        assert Operator.VOICE_SHIFT.prompt_modifier in prompts_seen[2]
 
     def test_placeholder_validation_failure_skips_iteration(self) -> None:
         """Iterations where LLM drops placeholders are skipped."""
@@ -188,9 +188,9 @@ class TestAdversarialLoop:
         chunk = _make_chunk(text)
         detection = _make_detection(chunk.id)
         config = _make_config(iterations=3, target=0.25)
-        config_with_cite = HumanizerConfig(
-            adversarial_iterations=3,
-            adversarial_target_score=0.25,
+        config_with_cite = TransformConfig(
+            search_iterations=3,
+            search_target_score=0.25,
             temperature=config.temperature,
             term_protection=TermProtectionConfig(
                 use_ner=False, protect_citations=True, protect_numbers=False
@@ -212,7 +212,7 @@ class TestAdversarialLoop:
         prompt_builder = PromptBuilder(examples_dir=None)
 
         result = asyncio.run(
-            adversarial_humanize(
+            transformation_search(
                 chunk, detection, client, detector, term_protector,
                 prompt_builder, config_with_cite, "phi3:3.8b", "fast",
             )
@@ -249,7 +249,7 @@ class TestAdversarialLoop:
         prompt_builder = PromptBuilder(examples_dir=None)
 
         result = asyncio.run(
-            adversarial_humanize(
+            transformation_search(
                 chunk, detection, client, detector, term_protector,
                 prompt_builder, config, "phi3:3.8b", "fast",
             )
@@ -278,7 +278,7 @@ class TestAdversarialLoop:
 
         with pytest.raises(OllamaConnectionError):
             asyncio.run(
-                adversarial_humanize(
+                transformation_search(
                     chunk, detection, client, detector, term_protector,
                     prompt_builder, config, "phi3:3.8b", "fast",
                 )
@@ -289,9 +289,9 @@ class TestAdversarialLoop:
         text = "See [Smith, 2024] for details."
         chunk = _make_chunk(text)
         detection = _make_detection(chunk.id)
-        config_with_cite = HumanizerConfig(
-            adversarial_iterations=2,
-            adversarial_target_score=0.25,
+        config_with_cite = TransformConfig(
+            search_iterations=2,
+            search_target_score=0.25,
             temperature=TemperatureProfileConfig(),
             term_protection=TermProtectionConfig(
                 use_ner=False, protect_citations=True, protect_numbers=False
@@ -305,9 +305,9 @@ class TestAdversarialLoop:
         term_protector = TermProtector(config_with_cite.term_protection)
         prompt_builder = PromptBuilder(examples_dir=None)
 
-        with pytest.raises(RuntimeError, match="No valid paraphrase"):
+        with pytest.raises(RuntimeError, match="No valid transform"):
             asyncio.run(
-                adversarial_humanize(
+                transformation_search(
                     chunk, detection, client, detector, term_protector,
                     prompt_builder, config_with_cite, "phi3:3.8b", "fast",
                 )

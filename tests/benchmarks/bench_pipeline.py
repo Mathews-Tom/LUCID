@@ -12,7 +12,7 @@ from lucid.models.results import (
     DetectionResult,
     DocumentResult,
     EvaluationResult,
-    ParaphraseResult,
+    TransformResult,
 )
 from lucid.pipeline import LUCIDPipeline, PipelineState
 
@@ -37,9 +37,9 @@ class TestPipelineLatency:
         mock_mgr.detector.detect.return_value = DetectionResult(
             chunk_id="c1", ensemble_score=0.8, classification="ai_generated",
         )
-        mock_mgr.humanizer.humanize.return_value = ParaphraseResult(
-            chunk_id="c1", original_text="Test", humanized_text="Tested",
-            iteration_count=1, strategy_used="standard", final_detection_score=0.2,
+        mock_mgr.transformer.transform.return_value = TransformResult(
+            chunk_id="c1", original_text="Test", transformed_text="Tested",
+            iteration_count=1, operator_used="standard", final_detection_score=0.2,
         )
         mock_mgr.evaluator.evaluate_chunk.return_value = EvaluationResult(
             chunk_id="c1", passed=True, embedding_similarity=0.9,
@@ -66,6 +66,6 @@ class TestPipelineLatency:
     def test_pipeline_state_machine(self) -> None:
         """Validate pipeline state transitions."""
         states = [s.value for s in PipelineState]
-        expected = ["PARSING", "DETECTING", "HUMANIZING", "EVALUATING",
+        expected = ["PARSING", "DETECTING", "TRANSFORMING", "EVALUATING",
                      "RECONSTRUCTING", "VALIDATING", "COMPLETE", "FAILED"]
         assert states == expected

@@ -34,18 +34,18 @@ human_max = 0.30
 ai_min = 0.65
 ambiguity_triggers_binoculars = true
 
-[humanizer]
+[transform]
 max_retries = 3
-adversarial_iterations = 8
-adversarial_target_score = 0.25
-humanize_ambiguous = true
+search_iterations = 8
+search_target_score = 0.25
+transform_ambiguous = true
 
-[humanizer.temperature]
+[transform.temperature]
 fast = 0.7
 balanced = 0.6
 quality = 0.5
 
-[humanizer.term_protection]
+[transform.term_protection]
 use_ner = true
 custom_terms = []
 protect_citations = true
