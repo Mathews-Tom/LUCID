@@ -10,7 +10,7 @@ import logging
 from typing import TYPE_CHECKING
 
 from lucid.transform.ollama import GenerateOptions, OllamaError
-from lucid.transform.strategies import select_strategy
+from lucid.transform.operators import select_strategy
 from lucid.models.results import ParaphraseResult
 from lucid.parser.chunk import ProseChunk
 

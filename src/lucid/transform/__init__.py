@@ -13,7 +13,7 @@ from typing import TYPE_CHECKING
 
 from lucid.transform.ollama import GenerateOptions, OllamaClient
 from lucid.transform.prompts import PromptBuilder
-from lucid.transform.strategies import select_strategy
+from lucid.transform.operators import select_strategy
 from lucid.transform.term_protect import TermProtector
 from lucid.models.results import ParaphraseResult
 
@@ -100,7 +100,7 @@ class LUCIDHumanizer:
             ) -> ParaphraseResult:
                 async with semaphore:
                     if self._config.adversarial_iterations > 1:
-                        from lucid.transform.adversarial import adversarial_humanize
+                        from lucid.transform.search import adversarial_humanize
 
                         return await adversarial_humanize(
                             chunk=chunk,
@@ -171,7 +171,7 @@ class LUCIDHumanizer:
         ) as client:
             await self._resolve_model(client)
             if self._config.adversarial_iterations > 1:
-                from lucid.transform.adversarial import adversarial_humanize
+                from lucid.transform.search import adversarial_humanize
 
                 return await adversarial_humanize(
                     chunk=chunk,

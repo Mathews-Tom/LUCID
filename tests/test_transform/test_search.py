@@ -12,14 +12,14 @@ from lucid.config import (
     TemperatureProfileConfig,
     TermProtectionConfig,
 )
-from lucid.transform.adversarial import adversarial_humanize
+from lucid.transform.search import adversarial_humanize
 from lucid.transform.ollama import (
     GenerateResult,
     OllamaClient,
     OllamaConnectionError,
 )
 from lucid.transform.prompts import PromptBuilder
-from lucid.transform.strategies import Strategy
+from lucid.transform.operators import Strategy
 from lucid.transform.term_protect import TermProtector
 from lucid.models.results import DetectionResult, ParaphraseResult
 from lucid.parser.chunk import ProseChunk

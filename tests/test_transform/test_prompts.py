@@ -10,7 +10,7 @@ if TYPE_CHECKING:
     from pathlib import Path
 
 from lucid.transform.prompts import ExamplePair, PromptBuilder
-from lucid.transform.strategies import Strategy
+from lucid.transform.operators import Strategy
 
 # ---------------------------------------------------------------------------
 # Fixtures
