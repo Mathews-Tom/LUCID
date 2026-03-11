@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import json
 from collections.abc import Sequence
-from io import StringIO
 from pathlib import Path
 
 from lucid.bench.aggregation import AggregatedMetrics
