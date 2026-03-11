@@ -320,7 +320,7 @@ class TestGenerateOptions:
         assert opts.temperature == 0.6
         assert opts.top_p == 0.9
         assert opts.top_k == 40
-        assert opts.num_ctx == 4096
+        assert opts.num_ctx == 2048
 
     def test_to_dict(self) -> None:
         """to_dict produces complete options dict."""
