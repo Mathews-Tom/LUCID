@@ -1,6 +1,6 @@
-"""Adversarial refinement loop for the LUCID humanization pipeline.
+"""Transformation search loop for the LUCID pipeline.
 
-Iterates through humanization strategies, re-scoring each candidate
+Iterates through transform operators, re-scoring each candidate
 with the detection engine, and returns the best (lowest-scoring) result.
 """
 
@@ -10,8 +10,8 @@ import logging
 from typing import TYPE_CHECKING
 
 from lucid.transform.ollama import GenerateOptions, OllamaError
-from lucid.transform.operators import select_strategy
-from lucid.models.results import ParaphraseResult
+from lucid.transform.operators import select_operator
+from lucid.models.results import TransformResult
 from lucid.parser.chunk import ProseChunk
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-async def adversarial_humanize(
+async def transformation_search(
     chunk: ProseChunk,
     detection: DetectionResult,
     client: OllamaClient,
@@ -35,26 +35,26 @@ async def adversarial_humanize(
     config: HumanizerConfig,
     model: str,
     profile: str,
-) -> ParaphraseResult:
-    """Run the adversarial humanization loop.
+) -> TransformResult:
+    """Run the transformation search loop.
 
-    Iterates through strategies, generating candidates and re-scoring
+    Iterates through operators, generating candidates and re-scoring
     each with the detector. Tracks the best candidate (lowest detection
     score) and exits early when the score drops below the target.
 
     Args:
-        chunk: Prose chunk to humanize.
+        chunk: Prose chunk to transform.
         detection: Initial detection result.
         client: Active OllamaClient (already in context manager).
         detector: Detection engine for re-scoring.
         term_protector: Handles placeholder protection and restoration.
-        prompt_builder: Constructs prompts per strategy/domain/profile.
-        config: Humanizer configuration.
+        prompt_builder: Constructs prompts per operator/domain/profile.
+        config: Transform configuration.
         model: Ollama model tag.
         profile: Quality profile name.
 
     Returns:
-        ParaphraseResult from the best candidate across all iterations.
+        TransformResult from the best candidate across all iterations.
 
     Raises:
         RuntimeError: If no valid candidate is produced across all iterations.
@@ -69,15 +69,15 @@ async def adversarial_humanize(
     num_predict = max(512, min(2048, int(input_token_estimate * 1.3)))
     options = GenerateOptions(temperature=temperature, num_predict=num_predict)
 
-    best: ParaphraseResult | None = None
+    best: TransformResult | None = None
     domain = chunk.domain_hint or "general"
 
     for i in range(config.adversarial_iterations):
-        strategy = select_strategy(i, placeholder_count=placeholder_count)
+        operator = select_operator(i, placeholder_count=placeholder_count)
 
         prompt = prompt_builder.build(
             protected.text,
-            strategy,
+            operator,
             domain,
             profile,
             placeholders=protected.all_placeholders(),
@@ -87,9 +87,9 @@ async def adversarial_humanize(
             result = await client.generate(prompt, model, options=options)
         except OllamaError:
             logger.warning(
-                "Ollama generation failed on iteration %d (strategy=%s)",
+                "Ollama generation failed on iteration %d (operator=%s)",
                 i,
-                strategy.name,
+                operator.name,
                 exc_info=True,
             )
             if best is not None:
@@ -139,12 +139,12 @@ async def adversarial_humanize(
         )
         score = detector.detect_fast(temp_chunk).ensemble_score
 
-        candidate = ParaphraseResult(
+        candidate = TransformResult(
             chunk_id=chunk.id,
             original_text=chunk.text,
-            humanized_text=restored,
+            transformed_text=restored,
             iteration_count=i + 1,
-            strategy_used=strategy.name,
+            operator_used=operator.name,
             final_detection_score=score,
         )
 
@@ -155,7 +155,7 @@ async def adversarial_humanize(
         # Early exit
         if score < config.adversarial_target_score:
             logger.info(
-                "Adversarial converged at iteration %d (score=%.3f, target=%.3f)",
+                "Search converged at iteration %d (score=%.3f, target=%.3f)",
                 i + 1,
                 score,
                 config.adversarial_target_score,
@@ -166,6 +166,6 @@ async def adversarial_humanize(
         return best
 
     raise RuntimeError(
-        f"No valid paraphrase produced for chunk {chunk.id} "
+        f"No valid transform produced for chunk {chunk.id} "
         f"after {config.adversarial_iterations} iterations"
     )

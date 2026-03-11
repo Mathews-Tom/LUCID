@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
-    from lucid.models.results import DetectionResult, EvaluationResult, ParaphraseResult
+    from lucid.models.results import DetectionResult, EvaluationResult, TransformResult
     from lucid.parser.chunk import Chunk, ProseChunk
 
 
@@ -30,10 +30,10 @@ class Detector(Protocol):
 
 
 @runtime_checkable
-class Humanizer(Protocol):
-    """Paraphrase a prose chunk to reduce AI detection score."""
+class Transformer(Protocol):
+    """Transform a prose chunk to reduce AI detection score."""
 
-    def humanize(self, chunk: ProseChunk, detection: DetectionResult) -> ParaphraseResult: ...
+    def transform(self, chunk: ProseChunk, detection: DetectionResult) -> TransformResult: ...
 
 
 @runtime_checkable

@@ -12,7 +12,7 @@ from lucid.models.results import (
     DetectionResult,
     DocumentResult,
     EvaluationResult,
-    ParaphraseResult,
+    TransformResult,
 )
 from lucid.output import OutputFormatter
 from lucid.parser.chunk import ProseChunk
@@ -30,7 +30,7 @@ def formatter() -> OutputFormatter:
 
 @pytest.fixture
 def sample_result() -> DocumentResult:
-    """DocumentResult with detections, paraphrases, and evaluations."""
+    """DocumentResult with detections, transforms, and evaluations."""
     chunk = ProseChunk(
         text="AI-generated text here",
         start_pos=0,
@@ -49,13 +49,13 @@ def sample_result() -> DocumentResult:
                 classification="ai_generated",
             )
         ],
-        paraphrases=[
-            ParaphraseResult(
+        transforms=[
+            TransformResult(
                 chunk_id="abc12345deadbeef",
                 original_text="AI-generated text here",
-                humanized_text="Naturally written text here",
+                transformed_text="Naturally written text here",
                 iteration_count=3,
-                strategy_used="lexical_diversity",
+                operator_used="lexical_diversity",
                 final_detection_score=0.15,
             )
         ],
@@ -66,12 +66,12 @@ def sample_result() -> DocumentResult:
                 embedding_similarity=0.92,
             )
         ],
-        output_path="test_humanized.md",
+        output_path="test_transformed.md",
         summary_stats={
             "total_chunks": 1,
             "prose_chunks": 1,
             "ai_detected": 1,
-            "humanized": 1,
+            "transformed": 1,
             "eval_passed": 1,
             "eval_failed": 0,
             "failed": 0,
@@ -131,7 +131,7 @@ class TestFormatText:
         assert "test.md" in output
         assert "markdown" in output
         assert "AI-detected:" in output
-        assert "Humanized:" in output
+        assert "Transformed:" in output
 
     def test_contains_detection_results(
         self,

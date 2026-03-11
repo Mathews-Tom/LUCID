@@ -1,6 +1,6 @@
 """End-to-end integration tests for the LUCID pipeline.
 
-All tests mock the ML models (detector, humanizer, evaluator) to avoid
+All tests mock the ML models (detector, transformer, evaluator) to avoid
 requiring actual model downloads, while exercising the full pipeline
 orchestration, checkpoint, output, and CLI layers.
 """
@@ -19,7 +19,7 @@ from lucid.models.results import (
     DetectionResult,
     DocumentResult,
     EvaluationResult,
-    ParaphraseResult,
+    TransformResult,
 )
 from lucid.output import OutputFormatter
 from lucid.pipeline import LUCIDPipeline
@@ -40,13 +40,13 @@ def _mock_detector_detect(chunk: MagicMock) -> DetectionResult:
     )
 
 
-def _mock_humanize(chunk: MagicMock, _det: MagicMock) -> ParaphraseResult:
-    return ParaphraseResult(
+def _mock_transform(chunk: MagicMock, _det: MagicMock) -> TransformResult:
+    return TransformResult(
         chunk_id=chunk.id,
         original_text=chunk.text,
-        humanized_text=f"[humanized] {chunk.text}",
+        transformed_text=f"[transformed] {chunk.text}",
         iteration_count=2,
-        strategy_used="lexical_diversity",
+        operator_used="lexical_diversity",
         final_detection_score=0.18,
     )
 
@@ -82,18 +82,18 @@ class TestMarkdownPipeline:
         mock_eval = MagicMock()
 
         mock_mgr.initialize_detector.return_value = mock_det
-        mock_mgr.initialize_humanizer.return_value = mock_hum
+        mock_mgr.initialize_transformer.return_value = mock_hum
         mock_mgr.initialize_evaluator.return_value = mock_eval
         mock_mgr.detector = mock_det
-        mock_mgr.humanizer = mock_hum
+        mock_mgr.transformer = mock_hum
         mock_mgr.evaluator = mock_eval
 
         mock_det.detect.side_effect = _mock_detector_detect
-        mock_hum.humanize.side_effect = _mock_humanize
+        mock_hum.transform.side_effect = _mock_transform
         mock_eval.evaluate_chunk.side_effect = _mock_evaluate
 
         input_file = CORPUS_DIR / "markdown" / "simple.md"
-        output_file = tmp_path / "simple_humanized.md"
+        output_file = tmp_path / "simple_transformed.md"
 
         pipeline = LUCIDPipeline(config)
         result = pipeline.run(input_file, output_path=output_file)
@@ -102,7 +102,7 @@ class TestMarkdownPipeline:
         assert result.output_path == str(output_file)
         assert output_file.exists()
         assert len(result.detections) > 0
-        assert len(result.paraphrases) > 0
+        assert len(result.transforms) > 0
         assert all(e.passed for e in result.evaluations)
         assert result.summary_stats["total_chunks"] > 0
         mock_mgr.shutdown.assert_called_once()
@@ -131,18 +131,18 @@ class TestLatexPipeline:
         mock_eval = MagicMock()
 
         mock_mgr.initialize_detector.return_value = mock_det
-        mock_mgr.initialize_humanizer.return_value = mock_hum
+        mock_mgr.initialize_transformer.return_value = mock_hum
         mock_mgr.initialize_evaluator.return_value = mock_eval
         mock_mgr.detector = mock_det
-        mock_mgr.humanizer = mock_hum
+        mock_mgr.transformer = mock_hum
         mock_mgr.evaluator = mock_eval
 
         mock_det.detect.side_effect = _mock_detector_detect
-        mock_hum.humanize.side_effect = _mock_humanize
+        mock_hum.transform.side_effect = _mock_transform
         mock_eval.evaluate_chunk.side_effect = _mock_evaluate
 
         input_file = CORPUS_DIR / "latex" / "simple.tex"
-        output_file = tmp_path / "simple_humanized.tex"
+        output_file = tmp_path / "simple_transformed.tex"
 
         pipeline = LUCIDPipeline(config)
         result = pipeline.run(input_file, output_path=output_file)
@@ -156,7 +156,7 @@ class TestLatexPipeline:
 
 @pytest.mark.integration
 class TestDetectOnly:
-    """Detect-only mode produces a report without humanization."""
+    """Detect-only mode produces a report without transformation."""
 
     @patch("lucid.pipeline.ModelManager")
     def test_detect_only_json_report(
@@ -175,7 +175,7 @@ class TestDetectOnly:
         result = pipeline.run_detect_only(input_file)
 
         assert len(result.detections) > 0
-        assert len(result.paraphrases) == 0
+        assert len(result.transforms) == 0
 
         formatter = OutputFormatter()
         json_output = formatter.format_json(result, config)
@@ -206,14 +206,14 @@ class TestCheckpointResume:
         mock_eval = MagicMock()
 
         mock_mgr.initialize_detector.return_value = mock_det
-        mock_mgr.initialize_humanizer.return_value = mock_hum
+        mock_mgr.initialize_transformer.return_value = mock_hum
         mock_mgr.initialize_evaluator.return_value = mock_eval
         mock_mgr.detector = mock_det
-        mock_mgr.humanizer = mock_hum
+        mock_mgr.transformer = mock_hum
         mock_mgr.evaluator = mock_eval
 
         mock_det.detect.side_effect = _mock_detector_detect
-        mock_hum.humanize.side_effect = _mock_humanize
+        mock_hum.transform.side_effect = _mock_transform
         mock_eval.evaluate_chunk.side_effect = _mock_evaluate
 
         input_file = CORPUS_DIR / "markdown" / "simple.md"

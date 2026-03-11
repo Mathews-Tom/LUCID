@@ -48,7 +48,7 @@ class TestBlockReplacement:
         body = [c for c in prose if "first paragraph" in c.text]
         assert len(body) == 1
 
-        body[0].metadata["humanized_text"] = "This is a replaced paragraph."
+        body[0].metadata["transformed_text"] = "This is a replaced paragraph."
         result = reconstruct_markdown(content, chunks)
 
         assert "replaced paragraph" in result
@@ -68,7 +68,7 @@ class TestLineCountChanges:
         # Find multi-line paragraph
         multi = [c for c in prose if "\n" in c.text]
         if multi:
-            multi[0].metadata["humanized_text"] = "Single line."
+            multi[0].metadata["transformed_text"] = "Single line."
             result = reconstruct_markdown(content, chunks)
             assert "Single line." in result
 
@@ -81,7 +81,7 @@ class TestLineCountChanges:
         # Find the short paragraph
         short = [c for c in prose if "short paragraph" in c.text.lower()]
         if short:
-            short[0].metadata["humanized_text"] = "Line one.\nLine two.\nLine three."
+            short[0].metadata["transformed_text"] = "Line one.\nLine two.\nLine three."
             result = reconstruct_markdown(content, chunks)
             assert "Line one.\nLine two.\nLine three." in result
 
@@ -110,7 +110,7 @@ class TestPlaceholderRestoration:
         chunk = prose_with_math[0]
         # Modify text around placeholders
         new_text = chunk.text.replace("equation", "formula")
-        chunk.metadata["humanized_text"] = new_text
+        chunk.metadata["transformed_text"] = new_text
 
         result = reconstruct_markdown(content, chunks)
         assert "formula" in result
@@ -127,8 +127,8 @@ class TestPlaceholderRestoration:
         assert len(prose_with_math) == 1
 
         chunk = prose_with_math[0]
-        # Set humanized_text to the placeholder form — after restoration it matches original
-        chunk.metadata["humanized_text"] = chunk.text
+        # Set transformed_text to the placeholder form — after restoration it matches original
+        chunk.metadata["transformed_text"] = chunk.text
 
         result = reconstruct_markdown(content, chunks)
         assert result == content

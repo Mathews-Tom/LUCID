@@ -1,8 +1,8 @@
-"""Content humanization via Ollama LLM inference.
+"""Content transformation via Ollama LLM inference.
 
-The :class:`LUCIDHumanizer` satisfies the :class:`~lucid.core.protocols.Humanizer`
+The :class:`LUCIDTransformer` satisfies the :class:`~lucid.core.protocols.Transformer`
 protocol, wrapping the async :class:`OllamaClient` behind a synchronous
-``humanize()`` call.
+``transform()`` call.
 """
 
 from __future__ import annotations
@@ -13,9 +13,9 @@ from typing import TYPE_CHECKING
 
 from lucid.transform.ollama import GenerateOptions, OllamaClient
 from lucid.transform.prompts import PromptBuilder
-from lucid.transform.operators import select_strategy
+from lucid.transform.operators import select_operator
 from lucid.transform.term_protect import TermProtector
-from lucid.models.results import ParaphraseResult
+from lucid.models.results import TransformResult
 
 if TYPE_CHECKING:
     from lucid.config import HumanizerConfig, OllamaConfig
@@ -25,19 +25,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["LUCIDHumanizer"]
+__all__ = ["LUCIDTransformer"]
 
 
-class LUCIDHumanizer:
-    """Synchronous humanizer satisfying the ``Humanizer`` protocol.
+class LUCIDTransformer:
+    """Synchronous transformer satisfying the ``Transformer`` protocol.
 
     Wraps :class:`OllamaClient` (async) behind ``asyncio.run()`` so that
-    callers can use a plain ``humanize(chunk, detection)`` call.
+    callers can use a plain ``transform(chunk, detection)`` call.
 
     Args:
-        humanizer_config: Humanizer settings (retries, adversarial iterations, etc.).
+        humanizer_config: Transform settings (retries, search iterations, etc.).
         ollama_config: Ollama connection and model settings.
-        detector: Detection engine used for adversarial re-scoring.
+        detector: Detection engine used for search re-scoring.
         profile: Quality profile (``"fast"``, ``"balanced"``, ``"quality"``).
     """
 
@@ -60,12 +60,12 @@ class LUCIDHumanizer:
         self._temperature: float = getattr(humanizer_config.temperature, profile)
         self._model_resolved: bool = False
 
-    def humanize_batch(
+    def transform_batch(
         self,
         chunks_and_detections: list[tuple[ProseChunk, DetectionResult]],
         max_concurrent: int = 4,
-    ) -> list[ParaphraseResult | BaseException]:
-        """Humanize multiple chunks concurrently via a single event loop.
+    ) -> list[TransformResult | BaseException]:
+        """Transform multiple chunks concurrently via a single event loop.
 
         Uses asyncio.Semaphore to limit concurrent Ollama requests.
         Individual chunk failures are returned as BaseException instances
@@ -76,18 +76,18 @@ class LUCIDHumanizer:
             max_concurrent: Maximum concurrent Ollama requests.
 
         Returns:
-            List of ParaphraseResult or BaseException, positionally matching input.
+            List of TransformResult or BaseException, positionally matching input.
         """
         return asyncio.run(
-            self._humanize_batch_async(chunks_and_detections, max_concurrent)
+            self._transform_batch_async(chunks_and_detections, max_concurrent)
         )
 
-    async def _humanize_batch_async(
+    async def _transform_batch_async(
         self,
         chunks_and_detections: list[tuple[ProseChunk, DetectionResult]],
         max_concurrent: int,
-    ) -> list[ParaphraseResult | BaseException]:
-        """Async implementation of batch humanization."""
+    ) -> list[TransformResult | BaseException]:
+        """Async implementation of batch transformation."""
         semaphore = asyncio.Semaphore(max_concurrent)
         async with OllamaClient(
             host=self._ollama_config.host,
@@ -97,12 +97,12 @@ class LUCIDHumanizer:
 
             async def process_one(
                 chunk: ProseChunk, detection: DetectionResult
-            ) -> ParaphraseResult:
+            ) -> TransformResult:
                 async with semaphore:
                     if self._config.adversarial_iterations > 1:
-                        from lucid.transform.search import adversarial_humanize
+                        from lucid.transform.search import transformation_search
 
-                        return await adversarial_humanize(
+                        return await transformation_search(
                             chunk=chunk,
                             detection=detection,
                             client=client,
@@ -119,31 +119,31 @@ class LUCIDHumanizer:
                 process_one(chunk, detection)
                 for chunk, detection in chunks_and_detections
             ]
-            results: list[ParaphraseResult | BaseException] = await asyncio.gather(
+            results: list[TransformResult | BaseException] = await asyncio.gather(
                 *tasks, return_exceptions=True
             )
             return results
 
-    def humanize(
+    def transform(
         self,
         chunk: ProseChunk,
         detection: DetectionResult,
-    ) -> ParaphraseResult:
-        """Paraphrase a prose chunk to reduce its AI detection score.
+    ) -> TransformResult:
+        """Transform a prose chunk to reduce its AI detection score.
 
-        Runs the full pipeline: term protection → prompt construction →
-        LLM generation → placeholder validation → restoration. Delegates
-        to :func:`~lucid.transform.adversarial.adversarial_humanize` when
+        Runs the full pipeline: term protection -> prompt construction ->
+        LLM generation -> placeholder validation -> restoration. Delegates
+        to :func:`~lucid.transform.search.transformation_search` when
         ``adversarial_iterations > 1``.
 
         Args:
-            chunk: Prose chunk to humanize.
-            detection: Detection result that triggered humanization.
+            chunk: Prose chunk to transform.
+            detection: Detection result that triggered transformation.
 
         Returns:
-            ParaphraseResult with the humanized text and metadata.
+            TransformResult with the transformed text and metadata.
         """
-        return asyncio.run(self._humanize_async(chunk, detection))
+        return asyncio.run(self._transform_async(chunk, detection))
 
     async def _resolve_model(self, client: OllamaClient) -> None:
         """Resolve configured model tag to an available model (once)."""
@@ -159,21 +159,21 @@ class LUCIDHumanizer:
             self._model = resolved
         self._model_resolved = True
 
-    async def _humanize_async(
+    async def _transform_async(
         self,
         chunk: ProseChunk,
         detection: DetectionResult,
-    ) -> ParaphraseResult:
-        """Async implementation of the humanization pipeline."""
+    ) -> TransformResult:
+        """Async implementation of the transformation pipeline."""
         async with OllamaClient(
             host=self._ollama_config.host,
             timeout=float(self._ollama_config.timeout_seconds),
         ) as client:
             await self._resolve_model(client)
             if self._config.adversarial_iterations > 1:
-                from lucid.transform.search import adversarial_humanize
+                from lucid.transform.search import transformation_search
 
-                return await adversarial_humanize(
+                return await transformation_search(
                     chunk=chunk,
                     detection=detection,
                     client=client,
@@ -192,12 +192,12 @@ class LUCIDHumanizer:
         chunk: ProseChunk,
         detection: DetectionResult,
         client: OllamaClient,
-    ) -> ParaphraseResult:
-        """Execute a single-pass humanization (no adversarial loop)."""
+    ) -> TransformResult:
+        """Execute a single-pass transformation (no search loop)."""
         protected = self._term_protector.protect(chunk)
         all_placeholders = protected.all_placeholders()
 
-        strategy = select_strategy(0, placeholder_count=len(all_placeholders))
+        strategy = select_operator(0, placeholder_count=len(all_placeholders))
         prompt = self._prompt_builder.build(
             protected.text, strategy, chunk.domain_hint, self._profile,
             placeholders=all_placeholders,
@@ -220,11 +220,11 @@ class LUCIDHumanizer:
             result.text, protected.term_placeholders, protected.math_placeholders
         )
 
-        return ParaphraseResult(
+        return TransformResult(
             chunk_id=chunk.id,
             original_text=chunk.text,
-            humanized_text=restored,
+            transformed_text=restored,
             iteration_count=1,
-            strategy_used=strategy.name,
+            operator_used=strategy.name,
             final_detection_score=detection.ensemble_score,
         )

@@ -148,7 +148,7 @@ class ProgressReporter:
         table.add_row("Total chunks", str(stats.get("total_chunks", 0)))
         table.add_row("Prose chunks", str(stats.get("prose_chunks", 0)))
         table.add_row("AI-detected", str(stats.get("ai_detected", 0)))
-        table.add_row("Humanized", str(stats.get("humanized", 0)))
+        table.add_row("Transformed", str(stats.get("transformed", 0)))
         table.add_row("Eval passed", str(stats.get("eval_passed", 0)))
         table.add_row("Eval failed", str(stats.get("eval_failed", 0)))
         table.add_row("Skipped (failed)", str(stats.get("failed", 0)))

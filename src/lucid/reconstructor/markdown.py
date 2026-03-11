@@ -40,7 +40,7 @@ def reconstruct_markdown(original: str, chunks: list[Chunk]) -> str:
 
         # Determine if this chunk was modified
         original_text = "\n".join(lines[chunk.start_pos : chunk.end_pos])
-        modified_text = chunk.metadata.get("humanized_text", "")
+        modified_text = chunk.metadata.get("transformed_text", "")
 
         if not modified_text and chunk.text == original_text:
             continue

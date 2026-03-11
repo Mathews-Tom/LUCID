@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from lucid.models.results import ParaphraseResult
+from lucid.models.results import TransformResult
 
 
 @pytest.mark.benchmark
@@ -13,19 +13,19 @@ class TestHumanizationEvasion:
     def test_evasion_rate_structure(self, benchmark_collector) -> None:  # type: ignore[no-untyped-def]
         """CI mode: validate evasion result structure."""
         single_pass = [
-            ParaphraseResult(
+            TransformResult(
                 chunk_id=f"chunk-{i}", original_text=f"Text {i}",
-                humanized_text=f"Humanized {i}", iteration_count=1,
-                strategy_used="standard", final_detection_score=score,
+                transformed_text=f"Transformed {i}", iteration_count=1,
+                operator_used="standard", final_detection_score=score,
             )
             for i, score in enumerate([0.22, 0.45, 0.18, 0.55, 0.12, 0.38, 0.09])
         ]
 
         adversarial = [
-            ParaphraseResult(
+            TransformResult(
                 chunk_id=f"adv-{i}", original_text=f"Text {i}",
-                humanized_text=f"Humanized {i}", iteration_count=count,
-                strategy_used=strategy, final_detection_score=score,
+                transformed_text=f"Transformed {i}", iteration_count=count,
+                operator_used=strategy, final_detection_score=score,
             )
             for i, (score, count, strategy) in enumerate([
                 (0.15, 3, "restructure"), (0.22, 2, "standard"),
@@ -46,7 +46,7 @@ class TestHumanizationEvasion:
 
         strategies: dict[str, int] = {}
         for r in adversarial:
-            strategies[r.strategy_used] = strategies.get(r.strategy_used, 0) + 1
+            strategies[r.operator_used] = strategies.get(r.operator_used, 0) + 1
 
         benchmark_collector.evasion = {
             "single_pass_evasion_rate": round(sp_rate, 3),
@@ -57,12 +57,12 @@ class TestHumanizationEvasion:
             "strategy_distribution": strategies,
         }
 
-    def test_paraphrase_result_validity(self) -> None:
-        """Validate ParaphraseResult invariants."""
-        result = ParaphraseResult(
+    def test_transform_result_validity(self) -> None:
+        """Validate TransformResult invariants."""
+        result = TransformResult(
             chunk_id="bench-001", original_text="Quick brown fox",
-            humanized_text="Swift brown fox", iteration_count=2,
-            strategy_used="standard", final_detection_score=0.25,
+            transformed_text="Swift brown fox", iteration_count=2,
+            operator_used="standard", final_detection_score=0.25,
         )
         assert 0.0 <= result.final_detection_score <= 1.0
         assert result.iteration_count >= 0

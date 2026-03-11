@@ -1,4 +1,4 @@
-"""Pipeline orchestrator for the LUCID detect-humanize-evaluate-reconstruct flow."""
+"""Pipeline orchestrator for the LUCID detect-transform-evaluate-reconstruct flow."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from typing import TYPE_CHECKING, Any
 
 from lucid.checkpoint import CheckpointManager
 from lucid.models.manager import ModelManager
-from lucid.models.results import DetectionResult, DocumentResult, ParaphraseResult
+from lucid.models.results import DetectionResult, DocumentResult, TransformResult
 from lucid.parser import detect_format, get_adapter
 from lucid.parser.chunk import ProseChunk
 from lucid.parser.merge import merge_prose_for_detection
@@ -30,7 +30,7 @@ class PipelineState(enum.Enum):
 
     PARSING = "PARSING"
     DETECTING = "DETECTING"
-    HUMANIZING = "HUMANIZING"
+    TRANSFORMING = "TRANSFORMING"
     EVALUATING = "EVALUATING"
     RECONSTRUCTING = "RECONSTRUCTING"
     VALIDATING = "VALIDATING"
@@ -39,7 +39,7 @@ class PipelineState(enum.Enum):
 
 
 class LUCIDPipeline:
-    """Orchestrates the full LUCID detect-humanize-evaluate-reconstruct pipeline.
+    """Orchestrates the full LUCID detect-transform-evaluate-reconstruct pipeline.
 
     Args:
         config: Fully resolved LUCID configuration.
@@ -62,11 +62,11 @@ class LUCIDPipeline:
         output_path: Path | None = None,
         progress_callback: Callable[[PipelineEvent], None] | None = None,
     ) -> DocumentResult:
-        """Run the full pipeline: parse -> detect -> humanize -> evaluate -> reconstruct.
+        """Run the full pipeline: parse -> detect -> transform -> evaluate -> reconstruct.
 
         Args:
             input_path: Path to the input document.
-            output_path: Where to write the output. Defaults to {stem}_humanized.{ext}.
+            output_path: Where to write the output. Defaults to {stem}_transformed.{ext}.
             progress_callback: Optional callback for progress events.
 
         Returns:
@@ -82,7 +82,7 @@ class LUCIDPipeline:
         checkpoint_mgr: CheckpointManager | None = None
         completed_ids: dict[str, list[str]] = {
             "detection": [],
-            "humanization": [],
+            "transformation": [],
             "evaluation": [],
         }
         failed_ids: dict[str, str] = {}
@@ -186,7 +186,7 @@ class LUCIDPipeline:
             )
             if ambiguous_count:
                 logger.info(
-                    "Skipping %d ambiguous chunks (humanize_ambiguous=false)",
+                    "Skipping %d ambiguous chunks (transform_ambiguous=false)",
                     ambiguous_count,
                 )
         target_chunks = [
@@ -197,71 +197,71 @@ class LUCIDPipeline:
         ]
         total_targets = len(target_chunks)
 
-        # HUMANIZING + EVALUATING
+        # TRANSFORMING + EVALUATING
         if target_chunks:
             model_mgr.release_detection_models()
-            model_mgr.initialize_humanizer()
+            model_mgr.initialize_transformer()
             if not self._skip_eval:
                 model_mgr.initialize_evaluator()
 
-            # Filter chunks that still need humanization
+            # Filter chunks that still need transformation
             pending_chunks = [
                 chunk
                 for chunk in target_chunks
-                if chunk.id not in completed_ids.get("humanization", [])
+                if chunk.id not in completed_ids.get("transformation", [])
                 and chunk.id not in failed_ids
             ]
 
-            # --- Batch humanization ---
+            # --- Batch transformation ---
             if pending_chunks:
                 self._emit(
                     progress_callback,
-                    PipelineState.HUMANIZING,
+                    PipelineState.TRANSFORMING,
                     None,
                     0,
                     total_targets,
-                    f"Humanizing {len(pending_chunks)} chunks (batch)",
+                    f"Transforming {len(pending_chunks)} chunks (batch)",
                 )
 
                 chunks_and_detections = [
                     (chunk, detection_map[chunk.id]) for chunk in pending_chunks
                 ]
 
-                # humanize_batch returns results positionally; failures raise per-chunk
+                # transform_batch returns results positionally; failures raise per-chunk
                 # Use individual error handling by processing via gather with return_exceptions
-                batch_results: list[ParaphraseResult | BaseException] = (
-                    model_mgr.humanizer.humanize_batch(chunks_and_detections)
+                batch_results: list[TransformResult | BaseException] = (
+                    model_mgr.transformer.transform_batch(chunks_and_detections)
                 )
 
-                paraphrase_map: dict[str, ParaphraseResult] = {}
+                transform_map: dict[str, TransformResult] = {}
                 for chunk, result in zip(pending_chunks, batch_results):
                     if isinstance(result, BaseException):
-                        logger.error("Chunk %s humanization failed: %s", chunk.id, result)
+                        logger.error("Chunk %s transformation failed: %s", chunk.id, result)
                         failed_ids[chunk.id] = str(result)
                     else:
-                        doc_result.paraphrases.append(result)
-                        paraphrase_map[chunk.id] = result
-                        completed_ids["humanization"].append(chunk.id)
+                        doc_result.transforms.append(result)
+                        transform_map[chunk.id] = result
+                        completed_ids["transformation"].append(chunk.id)
 
                 if checkpoint_mgr is not None:
                     checkpoint_mgr.save(
                         doc_result,
-                        PipelineState.HUMANIZING.value,
+                        PipelineState.TRANSFORMING.value,
                         completed_ids,
                         failed_ids,
                     )
 
                 if self._skip_eval:
-                    # Apply humanized text directly without evaluation
+                    # Apply transformed text directly without evaluation
                     for chunk in pending_chunks:
-                        if chunk.id in paraphrase_map:
-                            chunk.metadata["humanized_text"] = (
-                                paraphrase_map[chunk.id].humanized_text
+                        if chunk.id in transform_map:
+                            chunk.metadata["transformed_text"] = (
+                                transform_map[chunk.id].transformed_text
                             )
                             completed_ids["evaluation"].append(chunk.id)
                 else:
                     # --- Parallel evaluation ---
-                    eval_chunks = [c for c in pending_chunks if c.id in paraphrase_map]
+                    eval_chunks = [c for c in pending_chunks if c.id in transform_map]
                     if eval_chunks:
                         self._emit(
                             progress_callback,
@@ -275,12 +275,12 @@ class LUCIDPipeline:
                         with ThreadPoolExecutor(max_workers=4) as executor:
                             eval_futures = {}
                             for chunk in eval_chunks:
-                                p = paraphrase_map[chunk.id]
+                                p = transform_map[chunk.id]
                                 future = executor.submit(
                                     model_mgr.evaluator.evaluate_chunk,
                                     chunk.id,
                                     chunk.text,
-                                    p.humanized_text,
+                                    p.transformed_text,
                                 )
                                 eval_futures[future] = chunk
 
@@ -290,8 +290,8 @@ class LUCIDPipeline:
                                     evaluation = future.result()
                                     doc_result.evaluations.append(evaluation)
                                     if evaluation.passed:
-                                        chunk.metadata["humanized_text"] = (
-                                            paraphrase_map[chunk.id].humanized_text
+                                        chunk.metadata["transformed_text"] = (
+                                            transform_map[chunk.id].transformed_text
                                         )
                                     completed_ids["evaluation"].append(chunk.id)
                                 except Exception as exc:
@@ -339,7 +339,7 @@ class LUCIDPipeline:
 
         # Write output
         if output_path is None:
-            output_path = input_path.with_stem(input_path.stem + "_humanized")
+            output_path = input_path.with_stem(input_path.stem + "_transformed")
         output_path.write_text(output_content, encoding="utf-8")
         doc_result.output_path = str(output_path)
 
@@ -367,7 +367,7 @@ class LUCIDPipeline:
         input_path: Path,
         progress_callback: Callable[[PipelineEvent], None] | None = None,
     ) -> DocumentResult:
-        """Run detection only — no humanization, evaluation, or reconstruction.
+        """Run detection only -- no transformation, evaluation, or reconstruction.
 
         Args:
             input_path: Path to the input document.
@@ -489,7 +489,7 @@ class LUCIDPipeline:
             "total_chunks": len(doc_result.chunks),
             "prose_chunks": prose_count,
             "ai_detected": ai_detected,
-            "humanized": len(doc_result.paraphrases),
+            "transformed": len(doc_result.transforms),
             "eval_passed": eval_passed,
             "eval_failed": eval_failed,
             "failed": len(failed_ids),

@@ -48,7 +48,7 @@ class TestSingleReplacement:
         assert len(body) == 1
 
         # Modify it
-        body[0].metadata["humanized_text"] = "This is a modified paragraph."
+        body[0].metadata["transformed_text"] = "This is a modified paragraph."
         result = reconstruct_latex(content, chunks)
 
         assert "modified paragraph" in result
@@ -69,10 +69,10 @@ class TestMultipleReplacements:
         modified_count = 0
         for chunk in prose:
             if chunk.text == "First Section":
-                chunk.metadata["humanized_text"] = "Modified Title."
+                chunk.metadata["transformed_text"] = "Modified Title."
                 modified_count += 1
             elif "introductory text" in chunk.text:
-                chunk.metadata["humanized_text"] = "Modified body text."
+                chunk.metadata["transformed_text"] = "Modified body text."
                 modified_count += 1
 
         assert modified_count == 2
@@ -118,7 +118,7 @@ class TestPlaceholderRestoration:
         chunk = prose_with_math[0]
         # Replace the text around the placeholders
         new_text = chunk.text.replace("describes", "represents")
-        chunk.metadata["humanized_text"] = new_text
+        chunk.metadata["transformed_text"] = new_text
 
         result = reconstruct_latex(content, chunks)
         assert "represents" in result
@@ -145,14 +145,14 @@ class TestDirectTextModification:
     """Tests for chunks modified via text attribute rather than metadata."""
 
     def test_chunk_text_differs_from_original(self, adapter: LatexDocumentAdapter) -> None:
-        """Chunk with text != original slice triggers replacement without humanized_text."""
+        """Chunk with text != original slice triggers replacement without transformed_text."""
         content = Path("tests/corpus/latex/simple.tex").read_text()
         chunks = adapter.parse(content)
         prose = [c for c in chunks if isinstance(c, ProseChunk)]
         body = [c for c in prose if "simple paragraph" in c.text]
         assert len(body) == 1
 
-        # Modify chunk.text directly (no humanized_text metadata)
+        # Modify chunk.text directly (no transformed_text metadata)
         body[0].text = "Direct modification."
         result = reconstruct_latex(content, chunks)
         assert "Direct modification." in result

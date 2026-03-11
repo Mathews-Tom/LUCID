@@ -28,7 +28,7 @@ class OutputFormatter:
             JSON string with schema version, metadata, summary, and per-chunk detail.
         """
         detection_map = {d.chunk_id: d.to_dict() for d in result.detections}
-        paraphrase_map = {p.chunk_id: p.to_dict() for p in result.paraphrases}
+        paraphrase_map = {p.chunk_id: p.to_dict() for p in result.transforms}
         evaluation_map = {e.chunk_id: e.to_dict() for e in result.evaluations}
 
         chunks_detail: list[dict[str, Any]] = []
@@ -84,7 +84,7 @@ class OutputFormatter:
         lines.append(f"  Total chunks:     {stats.get('total_chunks', 0)}")
         lines.append(f"  Prose chunks:     {stats.get('prose_chunks', 0)}")
         lines.append(f"  AI-detected:      {stats.get('ai_detected', 0)}")
-        lines.append(f"  Humanized:        {stats.get('humanized', 0)}")
+        lines.append(f"  Transformed:      {stats.get('transformed', 0)}")
         lines.append(f"  Eval passed:      {stats.get('eval_passed', 0)}")
         lines.append(f"  Eval failed:      {stats.get('eval_failed', 0)}")
         lines.append(f"  Failed:           {stats.get('failed', 0)}")

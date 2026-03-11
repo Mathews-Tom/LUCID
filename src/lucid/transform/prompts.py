@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from lucid.transform.operators import Strategy
+    from lucid.transform.operators import Operator
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +86,7 @@ class PromptBuilder:
     def build(
         self,
         protected_text: str,
-        strategy: Strategy,
+        strategy: Operator,
         domain: str,
         profile: str,
         placeholders: list[str] | None = None,

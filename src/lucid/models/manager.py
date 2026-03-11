@@ -1,7 +1,7 @@
 """Model lifecycle management for the LUCID pipeline.
 
 Centralizes initialization, caching, and teardown of the three heavy
-ML components: detector, humanizer, and evaluator.
+ML components: detector, transformer, and evaluator.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from lucid.config import LUCIDConfig
 if TYPE_CHECKING:
     from lucid.detector.base import LUCIDDetector
     from lucid.evaluator import LUCIDEvaluator
-    from lucid.transform import LUCIDHumanizer
+    from lucid.transform import LUCIDTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ class ModelManager:
     def __init__(self, config: LUCIDConfig) -> None:
         self._config = config
         self._detector: LUCIDDetector | None = None
-        self._humanizer: LUCIDHumanizer | None = None
+        self._transformer: LUCIDTransformer | None = None
         self._evaluator: LUCIDEvaluator | None = None
 
     # ------------------------------------------------------------------
@@ -50,20 +50,20 @@ class ModelManager:
         self._detector = LUCIDDetector(self._config.detection)
         return self._detector
 
-    def initialize_humanizer(self) -> LUCIDHumanizer:
-        """Create and cache LUCIDHumanizer. Requires detector already initialized."""
+    def initialize_transformer(self) -> LUCIDTransformer:
+        """Create and cache LUCIDTransformer. Requires detector already initialized."""
         if self._detector is None:
-            raise RuntimeError("Detector must be initialized before humanizer")
+            raise RuntimeError("Detector must be initialized before transformer")
 
-        from lucid.transform import LUCIDHumanizer
+        from lucid.transform import LUCIDTransformer
 
-        self._humanizer = LUCIDHumanizer(
+        self._transformer = LUCIDTransformer(
             self._config.humanizer,
             self._config.ollama,
             self._detector,
             self._config.general.profile,
         )
-        return self._humanizer
+        return self._transformer
 
     def initialize_evaluator(self) -> LUCIDEvaluator:
         """Create and cache LUCIDEvaluator."""
@@ -89,13 +89,13 @@ class ModelManager:
         return self._detector
 
     @property
-    def humanizer(self) -> LUCIDHumanizer:
-        """Return the cached humanizer or raise if not initialized."""
-        if self._humanizer is None:
+    def transformer(self) -> LUCIDTransformer:
+        """Return the cached transformer or raise if not initialized."""
+        if self._transformer is None:
             raise RuntimeError(
-                "Humanizer not initialized — call initialize_humanizer() first"
+                "Transformer not initialized — call initialize_transformer() first"
             )
-        return self._humanizer
+        return self._transformer
 
     @property
     def evaluator(self) -> LUCIDEvaluator:
@@ -111,9 +111,9 @@ class ModelManager:
     # ------------------------------------------------------------------
 
     def release_detection_models(self) -> None:
-        """Unload heavy detection models to free memory for humanization.
+        """Unload heavy detection models to free memory for transformation.
 
-        Call between detection and humanization phases.
+        Call between detection and transformation phases.
         Logs a warning if available memory is below 4GB after release.
         """
         if self._detector is not None:
@@ -124,7 +124,7 @@ class ModelManager:
         if available_gb < 4.0:
             logger.warning(
                 "Low memory after detector release: %.1fGB available. "
-                "Humanization may be slow or fail.",
+                "Transformation may be slow or fail.",
                 available_gb,
             )
 
@@ -137,6 +137,6 @@ class ModelManager:
         if self._detector is not None:
             self._detector.unload_binoculars()
         self._detector = None
-        self._humanizer = None
+        self._transformer = None
         self._evaluator = None
         gc.collect()

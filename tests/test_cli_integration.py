@@ -125,7 +125,7 @@ class TestPipelineCommand:
                 "total_chunks": 1,
                 "prose_chunks": 1,
                 "ai_detected": 0,
-                "humanized": 0,
+                "transformed": 0,
                 "eval_passed": 0,
                 "eval_failed": 0,
                 "failed": 0,

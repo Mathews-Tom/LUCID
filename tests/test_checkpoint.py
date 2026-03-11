@@ -44,7 +44,7 @@ class TestRoundTrip:
         self, manager: CheckpointManager, sample_doc: DocumentResult
     ) -> None:
         """Saved checkpoint loads back with matching fields."""
-        completed = {"detection": ["c1", "c2"], "humanization": [], "evaluation": []}
+        completed = {"detection": ["c1", "c2"], "transformation": [], "evaluation": []}
         failed = {"c3": "timeout"}
 
         manager.save(sample_doc, state="DETECTING", completed_ids=completed, failed_ids=failed)

@@ -8,7 +8,7 @@ from lucid.models.results import (
     DetectionResult,
     DocumentResult,
     EvaluationResult,
-    ParaphraseResult,
+    TransformResult,
 )
 from lucid.parser.chunk import ProseChunk, StructuralChunk
 
@@ -72,17 +72,18 @@ class TestDetectionResult:
         assert restored.feature_details == original.feature_details
 
 
-class TestParaphraseResult:
-    """ParaphraseResult validation and serialization."""
+class TestTransformResult:
+    """TransformResult validation and serialization."""
+
 
     def test_valid_result(self) -> None:
-        """Valid ParaphraseResult creates successfully."""
-        result = ParaphraseResult(
+        """Valid TransformResult creates successfully."""
+        result = TransformResult(
             chunk_id="abc",
             original_text="AI text",
-            humanized_text="Human text",
+            transformed_text="Human text",
             iteration_count=2,
-            strategy_used="standard",
+            operator_used="standard",
             final_detection_score=0.2,
         )
         assert result.iteration_count == 2
@@ -90,41 +91,41 @@ class TestParaphraseResult:
     def test_negative_iteration_count_raises(self) -> None:
         """Negative iteration_count raises ValueError."""
         with pytest.raises(ValueError, match="iteration_count"):
-            ParaphraseResult(
+            TransformResult(
                 chunk_id="a",
                 original_text="x",
-                humanized_text="y",
+                transformed_text="y",
                 iteration_count=-1,
-                strategy_used="s",
+                operator_used="s",
                 final_detection_score=0.5,
             )
 
     def test_invalid_detection_score_raises(self) -> None:
         """Detection score out of range raises ValueError."""
         with pytest.raises(ValueError, match="final_detection_score"):
-            ParaphraseResult(
+            TransformResult(
                 chunk_id="a",
                 original_text="x",
-                humanized_text="y",
+                transformed_text="y",
                 iteration_count=1,
-                strategy_used="s",
+                operator_used="s",
                 final_detection_score=2.0,
             )
 
     def test_round_trip(self) -> None:
         """to_dict / from_dict preserves all fields."""
-        original = ParaphraseResult(
+        original = TransformResult(
             chunk_id="id1",
             original_text="original",
-            humanized_text="humanized",
+            transformed_text="transformed",
             iteration_count=3,
-            strategy_used="voice_shift",
+            operator_used="voice_shift",
             final_detection_score=0.15,
         )
-        restored = ParaphraseResult.from_dict(original.to_dict())
+        restored = TransformResult.from_dict(original.to_dict())
         assert restored.chunk_id == original.chunk_id
-        assert restored.humanized_text == original.humanized_text
-        assert restored.strategy_used == original.strategy_used
+        assert restored.transformed_text == original.transformed_text
+        assert restored.operator_used == original.operator_used
 
 
 class TestEvaluationResult:
@@ -213,12 +214,12 @@ class TestDocumentResult:
             ensemble_score=0.85,
             classification="ai_generated",
         )
-        paraphrase = ParaphraseResult(
+        transform = TransformResult(
             chunk_id=prose.id,
             original_text=prose.text,
-            humanized_text="A naturally written paragraph",
+            transformed_text="A naturally written paragraph",
             iteration_count=2,
-            strategy_used="standard",
+            operator_used="standard",
             final_detection_score=0.18,
         )
         evaluation = EvaluationResult(
@@ -232,10 +233,10 @@ class TestDocumentResult:
             format="latex",
             chunks=[prose, structural],
             detections=[detection],
-            paraphrases=[paraphrase],
+            transforms=[transform],
             evaluations=[evaluation],
             compilation_valid=True,
-            output_path="paper_humanized.tex",
+            output_path="paper_transformed.tex",
             summary_stats={"total_chunks": 2, "ai_chunks": 1},
         )
 
@@ -249,8 +250,8 @@ class TestDocumentResult:
         assert isinstance(restored.chunks[1], StructuralChunk)
         assert len(restored.detections) == 1
         assert restored.detections[0].ensemble_score == 0.85
-        assert len(restored.paraphrases) == 1
-        assert restored.paraphrases[0].humanized_text == "A naturally written paragraph"
+        assert len(restored.transforms) == 1
+        assert restored.transforms[0].transformed_text == "A naturally written paragraph"
         assert len(restored.evaluations) == 1
         assert restored.evaluations[0].passed is True
         assert restored.compilation_valid is True
