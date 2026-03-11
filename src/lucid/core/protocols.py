@@ -9,6 +9,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Protocol, runtime_checkable
 
 if TYPE_CHECKING:
+    from lucid.config import TransformConfig
+    from lucid.core.types import MetricResult
     from lucid.models.results import DetectionResult, EvaluationResult, TransformResult
     from lucid.parser.chunk import Chunk, ProseChunk
 
@@ -41,3 +43,21 @@ class Evaluator(Protocol):
     """Evaluate semantic preservation between original and paraphrased text."""
 
     def evaluate(self, original: str, paraphrase: str) -> EvaluationResult: ...
+
+
+@runtime_checkable
+class Metric(Protocol):
+    """Compute a metric between original and transformed text."""
+
+    name: str
+
+    def compute(self, original: str, transformed: str) -> MetricResult: ...
+
+
+@runtime_checkable
+class Operator(Protocol):
+    """Apply a transformation operator to text."""
+
+    name: str
+
+    def apply(self, text: str, config: TransformConfig) -> TransformResult: ...
