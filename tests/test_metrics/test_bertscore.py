@@ -6,7 +6,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lucid.evaluator.bertscore import BERTScoreChecker, BERTScoreResult
+from lucid.metrics.bertscore import BERTScoreChecker, BERTScoreResult
 
 
 def _mock_tensor(value: float) -> MagicMock:
@@ -20,7 +20,7 @@ def _mock_tensor(value: float) -> MagicMock:
 
 
 class TestBERTScoreChecker:
-    """Unit tests for BERTScoreChecker — no model loading."""
+    """Unit tests for BERTScoreChecker -- no model loading."""
 
     def test_lazy_loading_deferred_until_compute(self) -> None:
         """Scorer is not instantiated at construction time."""
@@ -129,7 +129,7 @@ class TestBERTScoreChecker:
 
 @pytest.mark.integration
 class TestBERTScoreCheckerIntegration:
-    """Integration tests — requires model download."""
+    """Integration tests -- requires model download."""
 
     def setup_method(self) -> None:
         self.checker = BERTScoreChecker(model_type="microsoft/deberta-xlarge-mnli")

@@ -6,11 +6,11 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lucid.evaluator.bertscore import BERTScoreResult
-from lucid.evaluator.embedding import EmbeddingResult
-from lucid.evaluator.nli import NLIResult
 from lucid.evaluator.pipeline import EvaluationPipeline, PipelineOptions
-from lucid.evaluator.term_verify import TermVerificationResult
+from lucid.metrics.bertscore import BERTScoreResult
+from lucid.metrics.embedding import EmbeddingResult
+from lucid.metrics.nli import NLIResult
+from lucid.metrics.term_verify import TermVerificationResult
 
 
 def _make_config(**overrides: object) -> MagicMock:

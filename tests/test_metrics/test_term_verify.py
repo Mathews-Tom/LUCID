@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from lucid.evaluator.term_verify import TermVerifier
+from lucid.metrics.term_verify import TermVerifier
 
 
 class TestTermVerifier:
-    """Unit tests for TermVerifier — no model loading, all regex-based."""
+    """Unit tests for TermVerifier -- no model loading, all regex-based."""
 
     def setup_method(self) -> None:
         self.verifier = TermVerifier()
@@ -14,7 +14,7 @@ class TestTermVerifier:
     # -- Placeholder tests --------------------------------------------------
 
     def test_all_placeholders_present_passes(self) -> None:
-        """All placeholders preserved in paraphrase → pass."""
+        """All placeholders preserved in paraphrase -> pass."""
         original = "The [TERM_000] method achieves [MATH_001] accuracy."
         paraphrase = "The [TERM_000] approach reaches [MATH_001] accuracy."
         result = self.verifier.verify(original, paraphrase)
@@ -24,7 +24,7 @@ class TestTermVerifier:
         assert result.reason is None
 
     def test_missing_placeholder_fails(self) -> None:
-        """Dropped placeholder in paraphrase → fail."""
+        """Dropped placeholder in paraphrase -> fail."""
         original = "Use [TERM_000] and [TERM_001] for analysis."
         paraphrase = "Use [TERM_000] for analysis."
         result = self.verifier.verify(original, paraphrase)
@@ -34,7 +34,7 @@ class TestTermVerifier:
         assert "missing placeholders" in result.reason
 
     def test_missing_math_placeholder_fails(self) -> None:
-        """Dropped MATH placeholder → fail."""
+        """Dropped MATH placeholder -> fail."""
         original = "Score is [MATH_000] on [MATH_001] samples."
         paraphrase = "Score is [MATH_000] on many samples."
         result = self.verifier.verify(original, paraphrase)
@@ -44,7 +44,7 @@ class TestTermVerifier:
     # -- Number tests -------------------------------------------------------
 
     def test_numbers_preserved_passes(self) -> None:
-        """All numbers preserved → pass."""
+        """All numbers preserved -> pass."""
         original = "We tested 100 samples with 95.5% accuracy."
         paraphrase = "We evaluated 100 samples achieving 95.5% accuracy."
         result = self.verifier.verify(original, paraphrase)
@@ -52,7 +52,7 @@ class TestTermVerifier:
         assert result.mismatched_numbers == ()
 
     def test_missing_number_fails(self) -> None:
-        """Number dropped from paraphrase → fail."""
+        """Number dropped from paraphrase -> fail."""
         original = "The model processed 500 items in 3.2 seconds."
         paraphrase = "The model processed items in 3.2 seconds."
         result = self.verifier.verify(original, paraphrase)
@@ -70,7 +70,7 @@ class TestTermVerifier:
     # -- Combined tests -----------------------------------------------------
 
     def test_combined_placeholder_and_number_failure(self) -> None:
-        """Both placeholder and number missing → combined failure."""
+        """Both placeholder and number missing -> combined failure."""
         original = "The [TERM_000] scored 92% on 50 samples."
         paraphrase = "The approach scored well on samples."
         result = self.verifier.verify(original, paraphrase)
@@ -81,7 +81,7 @@ class TestTermVerifier:
         assert "missing numbers" in (result.reason or "")
 
     def test_no_placeholders_no_numbers(self) -> None:
-        """Plain text with no placeholders or numbers → pass."""
+        """Plain text with no placeholders or numbers -> pass."""
         original = "This is a simple sentence about machine learning."
         paraphrase = "This sentence discusses machine learning concepts."
         result = self.verifier.verify(original, paraphrase)
@@ -95,7 +95,7 @@ class TestTermVerifier:
         assert result.passed is True
 
     def test_percentage_dropped_fails(self) -> None:
-        """Dropped percentage → fail."""
+        """Dropped percentage -> fail."""
         original = "Improved by 12.5% over baseline."
         paraphrase = "Improved significantly over baseline."
         result = self.verifier.verify(original, paraphrase)
