@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "SampleRecord",
+  "description": "A single text sample in a LUCID benchmark dataset.",
+  "type": "object",
+  "required": ["sample_id", "split", "domain", "source_class", "document_format", "text"],
+  "properties": {
+    "sample_id": {
+      "type": "string",
+      "description": "Unique identifier for the sample."
+    },
+    "split": {
+      "type": "string",
+      "enum": ["train", "val", "test"],
+      "description": "Dataset split."
+    },
+    "domain": {
+      "type": "string",
+      "description": "Content domain (e.g., academic, news, blog)."
+    },
+    "source_class": {
+      "type": "string",
+      "enum": ["human", "ai_raw", "ai_edited_light", "ai_edited_heavy"],
+      "description": "Origin classification of the text."
+    },
+    "source_model": {
+      "type": ["string", "null"],
+      "description": "Model identifier if AI-generated, null for human text."
+    },
+    "document_format": {
+      "type": "string",
+      "enum": ["latex", "markdown", "plaintext"],
+      "description": "Document format."
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Full document text content."
+    },
+    "metadata": {
+      "type": "object",
+      "default": {},
+      "description": "Additional key-value metadata."
+    }
+  },
+  "additionalProperties": false
+}

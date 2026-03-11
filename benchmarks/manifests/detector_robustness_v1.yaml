@@ -1,0 +1,23 @@
+name: detector_robustness_v1
+dataset: benchmarks/datasets/v1/test.jsonl
+detectors:
+  - roberta
+  - statistical
+  - ensemble
+transforms:
+  - operator: surface_edit
+    intensities: [0.2, 0.5, 0.8]
+  - operator: discourse_reorder
+    intensities: [0.3, 0.7]
+metrics:
+  - embedding_cosine
+  - nli_entailment
+  - term_preservation
+  - structure_preservation
+slices:
+  - domain
+  - source_class
+  - source_model
+  - operator
+  - intensity_bucket
+seed: 42
