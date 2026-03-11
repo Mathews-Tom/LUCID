@@ -1,4 +1,4 @@
-"""Humanization evasion rate benchmarks."""
+"""Transform effectiveness benchmarks."""
 from __future__ import annotations
 
 import pytest
@@ -7,11 +7,11 @@ from lucid.models.results import TransformResult
 
 
 @pytest.mark.benchmark
-class TestHumanizationEvasion:
-    """Benchmark evasion rates."""
+class TestTransformEffectiveness:
+    """Benchmark transform effectiveness rates."""
 
-    def test_evasion_rate_structure(self, benchmark_collector) -> None:  # type: ignore[no-untyped-def]
-        """CI mode: validate evasion result structure."""
+    def test_effectiveness_rate_structure(self, benchmark_collector) -> None:  # type: ignore[no-untyped-def]
+        """CI mode: validate effectiveness result structure."""
         single_pass = [
             TransformResult(
                 chunk_id=f"chunk-{i}", original_text=f"Text {i}",
@@ -25,9 +25,9 @@ class TestHumanizationEvasion:
             TransformResult(
                 chunk_id=f"adv-{i}", original_text=f"Text {i}",
                 transformed_text=f"Transformed {i}", iteration_count=count,
-                operator_used=strategy, final_detection_score=score,
+                operator_used=op_name, final_detection_score=score,
             )
-            for i, (score, count, strategy) in enumerate([
+            for i, (score, count, op_name) in enumerate([
                 (0.15, 3, "restructure"), (0.22, 2, "standard"),
                 (0.08, 4, "voice_shift"), (0.31, 5, "vocabulary"),
                 (0.11, 3, "reorder"), (0.19, 2, "standard"),
@@ -44,17 +44,17 @@ class TestHumanizationEvasion:
         assert 0.0 <= sp_rate <= 1.0
         assert 0.0 <= adv_rate <= 1.0
 
-        strategies: dict[str, int] = {}
+        operators: dict[str, int] = {}
         for r in adversarial:
-            strategies[r.operator_used] = strategies.get(r.operator_used, 0) + 1
+            operators[r.operator_used] = operators.get(r.operator_used, 0) + 1
 
-        benchmark_collector.evasion = {
-            "single_pass_evasion_rate": round(sp_rate, 3),
-            "adversarial_evasion_rate": round(adv_rate, 3),
+        benchmark_collector.effectiveness = {
+            "single_pass_effectiveness_rate": round(sp_rate, 3),
+            "adversarial_effectiveness_rate": round(adv_rate, 3),
             "mean_iterations": round(
                 sum(r.iteration_count for r in adversarial) / len(adversarial), 1
             ),
-            "strategy_distribution": strategies,
+            "operator_distribution": operators,
         }
 
     def test_transform_result_validity(self) -> None:
