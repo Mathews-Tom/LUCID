@@ -1,0 +1,21 @@
+name: transform_ablation_v1
+dataset: benchmarks/datasets/v1/test.jsonl
+detectors:
+  - ensemble
+transforms:
+  - operator: surface_edit
+    intensities: [0.1, 0.3, 0.5, 0.7, 0.9]
+  - operator: discourse_reorder
+    intensities: [0.1, 0.3, 0.5, 0.7, 0.9]
+  - operator: lexical_substitute
+    intensities: [0.1, 0.3, 0.5, 0.7, 0.9]
+metrics:
+  - embedding_cosine
+  - nli_entailment
+  - term_preservation
+  - structure_preservation
+slices:
+  - operator
+  - intensity_bucket
+  - document_format
+seed: 42
