@@ -84,6 +84,7 @@ class DetectionConfig:
     roberta_model: str = "openai-community/roberta-base-openai-detector"
     use_statistical: bool = True
     use_binoculars: bool = False
+    statistical_feature_tier: str = "standard"  # fast, standard, deep
     ensemble_weights: EnsembleWeightsConfig = field(default_factory=EnsembleWeightsConfig)
     ensemble_weights_with_binoculars: EnsembleWeightsWithBinocularsConfig = field(
         default_factory=EnsembleWeightsWithBinocularsConfig
