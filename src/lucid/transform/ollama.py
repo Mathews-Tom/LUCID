@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
@@ -12,6 +13,8 @@ if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
 import httpx
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Exception hierarchy
@@ -126,7 +129,7 @@ def _extract_model_family(tag: str) -> str:
     Examples:
         ``llama3.1:8b``   → ``llama3``
         ``llama3.2:latest`` → ``llama3``
-        ``qwen2.5:7b``    → ``qwen2``
+        ``qwen3.5:latest`` → ``qwen3``
         ``phi3:3.8b``     → ``phi3``
         ``gemma3:latest``  → ``gemma3``
 
@@ -309,6 +312,46 @@ class OllamaClient:
         # 3. No match
         raise OllamaModelNotFoundError(requested, [m.name for m in models])
 
+    # -- Model warm-up ---------------------------------------------------------
+
+    async def warm_up(self, model: str, timeout_override: float = 300.0) -> None:
+        """Force Ollama to load a model into memory before real work begins.
+
+        Sends a minimal generation request (1 token) with a generous timeout
+        so that model loading time doesn't eat into per-request budgets.
+
+        Args:
+            model: Ollama model tag to pre-load.
+            timeout_override: Timeout for the warm-up request (seconds).
+                Model loading from disk can take 30-60s for large models.
+
+        Raises:
+            OllamaConnectionError: Server unreachable.
+            OllamaTimeoutError: Even the warm-up timed out (model too large
+                or system severely memory-constrained).
+        """
+        logger.info("Warming up Ollama model %r (timeout=%.0fs)...", model, timeout_override)
+        original_timeout = self._client.timeout if self._client else None
+        try:
+            if self._client is not None:
+                self._client.timeout = httpx.Timeout(timeout_override, connect=10.0)
+            await self.client.post(
+                "/api/generate",
+                json={"model": model, "prompt": "Hi", "stream": False,
+                      "options": {"num_predict": 1}},
+            )
+            logger.info("Ollama model %r warm-up complete", model)
+        except httpx.ConnectError as exc:
+            raise OllamaConnectionError(f"Cannot connect to {self._host}") from exc
+        except httpx.TimeoutException as exc:
+            raise OllamaTimeoutError(
+                f"Model warm-up timed out after {timeout_override:.0f}s — "
+                f"system may be too memory-constrained for {model!r}"
+            ) from exc
+        finally:
+            if self._client is not None and original_timeout is not None:
+                self._client.timeout = original_timeout
+
     # -- Generation ------------------------------------------------------------
 
     async def generate(
@@ -346,6 +389,7 @@ class OllamaClient:
             "model": model,
             "prompt": prompt,
             "stream": False,
+            "think": False,
             "options": options.to_dict(),
         }
 
@@ -427,6 +471,7 @@ class OllamaClient:
             "model": model,
             "prompt": prompt,
             "stream": True,
+            "think": False,
             "options": options.to_dict(),
         }
 
