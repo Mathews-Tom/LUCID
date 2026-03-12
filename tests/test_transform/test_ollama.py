@@ -13,6 +13,7 @@ from lucid.transform.ollama import (
     OllamaConnectionError,
     OllamaEmptyResponseError,
     OllamaModelNotFoundError,
+    OllamaTimeoutError,
 )
 
 # ---------------------------------------------------------------------------
@@ -106,7 +107,7 @@ class TestListModels:
                                 "modified_at": "2025-01-01T00:00:00Z",
                             },
                             {
-                                "name": "qwen2.5:7b",
+                                "name": "qwen3.5:latest",
                                 "size": 4500000000,
                                 "digest": "def456",
                                 "modified_at": "2025-01-02T00:00:00Z",
@@ -120,7 +121,7 @@ class TestListModels:
         models = await client.list_models()
         assert len(models) == 2
         assert models[0].name == "phi3:3.8b"
-        assert models[1].name == "qwen2.5:7b"
+        assert models[1].name == "qwen3.5:latest"
         assert models[0].size == 2400000000
         await client._client.aclose()  # type: ignore[union-attr]
 
@@ -350,3 +351,69 @@ class TestContextManager:
         client = OllamaClient()
         with pytest.raises(RuntimeError, match="async context manager"):
             _ = client.client
+
+
+# ---------------------------------------------------------------------------
+# Warm-up tests
+# ---------------------------------------------------------------------------
+
+
+class TestWarmUp:
+    """OllamaClient.warm_up tests."""
+
+    async def test_warm_up_sends_minimal_request(self) -> None:
+        """warm_up sends a generate request with num_predict=1."""
+        captured_body: dict[str, object] = {}
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            if request.url.path == "/api/generate":
+                captured_body.update(json.loads(request.content))
+                return httpx.Response(
+                    200,
+                    json={"response": "H", "model": "phi3:3.8b", "done": True},
+                )
+            return httpx.Response(404)
+
+        client = _make_client(httpx.MockTransport(handler))
+        await client.warm_up("phi3:3.8b")
+        assert captured_body["model"] == "phi3:3.8b"
+        assert captured_body["options"]["num_predict"] == 1  # type: ignore[index]
+        assert captured_body["stream"] is False
+        await client._client.aclose()  # type: ignore[union-attr]
+
+    async def test_warm_up_connection_error_raises(self) -> None:
+        """warm_up raises OllamaConnectionError when server unreachable."""
+
+        def raise_connect(request: httpx.Request) -> httpx.Response:
+            raise httpx.ConnectError("refused")
+
+        client = _make_client(httpx.MockTransport(raise_connect))
+        with pytest.raises(OllamaConnectionError):
+            await client.warm_up("phi3:3.8b")
+        await client._client.aclose()  # type: ignore[union-attr]
+
+    async def test_warm_up_timeout_raises(self) -> None:
+        """warm_up raises OllamaTimeoutError when model loading is too slow."""
+
+        def raise_timeout(request: httpx.Request) -> httpx.Response:
+            raise httpx.ReadTimeout("timed out")
+
+        client = _make_client(httpx.MockTransport(raise_timeout))
+        with pytest.raises(OllamaTimeoutError, match="warm-up timed out"):
+            await client.warm_up("phi3:3.8b", timeout_override=5.0)
+        await client._client.aclose()  # type: ignore[union-attr]
+
+    async def test_warm_up_restores_original_timeout(self) -> None:
+        """warm_up restores the client's original timeout after completion."""
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            return httpx.Response(
+                200,
+                json={"response": "H", "model": "phi3:3.8b", "done": True},
+            )
+
+        client = _make_client(httpx.MockTransport(handler))
+        original_timeout = client._client.timeout  # type: ignore[union-attr]
+        await client.warm_up("phi3:3.8b", timeout_override=999.0)
+        assert client._client.timeout == original_timeout  # type: ignore[union-attr]
+        await client._client.aclose()  # type: ignore[union-attr]
