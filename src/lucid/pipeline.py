@@ -485,6 +485,20 @@ class LUCIDPipeline:
         eval_passed = sum(1 for e in doc_result.evaluations if e.passed)
         eval_failed = sum(1 for e in doc_result.evaluations if not e.passed)
 
+        # Aggregate failure reasons for summary display
+        failure_reasons: dict[str, int] = {}
+        for reason in failed_ids.values():
+            # Normalize reasons to categories
+            if "Placeholder" in reason or "placeholder" in reason:
+                key = "placeholder preservation failed"
+            elif "Ollama" in reason or "connection" in reason.lower():
+                key = "LLM connection/generation error"
+            elif "timeout" in reason.lower():
+                key = "LLM timeout"
+            else:
+                key = reason[:80]
+            failure_reasons[key] = failure_reasons.get(key, 0) + 1
+
         return {
             "total_chunks": len(doc_result.chunks),
             "prose_chunks": prose_count,
@@ -493,4 +507,5 @@ class LUCIDPipeline:
             "eval_passed": eval_passed,
             "eval_failed": eval_failed,
             "failed": len(failed_ids),
+            "failure_reasons": failure_reasons,
         }

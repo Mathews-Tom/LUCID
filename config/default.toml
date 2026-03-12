@@ -6,12 +6,12 @@ output_dir = "./lucid_output"
 
 [ollama]
 host = "http://localhost:11434"
-timeout_seconds = 60
+timeout_seconds = 120
 health_check_on_start = true
 
 [ollama.models]
 fast = "phi4:latest"
-balanced = "qwen2.5:7b"
+balanced = "qwen3.5:latest"
 quality = "llama3.1:latest"
 
 [detection]
@@ -36,6 +36,7 @@ ambiguity_triggers_binoculars = true
 
 [transform]
 max_retries = 3
+max_concurrent = 2
 search_iterations = 8
 search_target_score = 0.25
 transform_ambiguous = true

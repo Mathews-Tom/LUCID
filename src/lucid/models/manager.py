@@ -114,11 +114,27 @@ class ModelManager:
         """Unload heavy detection models to free memory for transformation.
 
         Call between detection and transformation phases.
+        Runs multiple GC passes and flushes accelerator caches to combat
+        Python heap fragmentation on macOS.
         Logs a warning if available memory is below 4GB after release.
         """
         if self._detector is not None:
             self._detector.unload_binoculars()
-        gc.collect()
+
+        # Multiple GC passes help break cyclic references from torch internals
+        for _ in range(3):
+            gc.collect()
+
+        # Flush accelerator memory pools that GC alone won't reclaim
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+        except ImportError:
+            pass
 
         available_gb = psutil.virtual_memory().available / (1024**3)
         if available_gb < 4.0:

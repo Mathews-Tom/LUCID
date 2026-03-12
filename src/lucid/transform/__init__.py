@@ -63,7 +63,6 @@ class LUCIDTransformer:
     def transform_batch(
         self,
         chunks_and_detections: list[tuple[ProseChunk, DetectionResult]],
-        max_concurrent: int = 4,
     ) -> list[TransformResult | BaseException]:
         """Transform multiple chunks concurrently via a single event loop.
 
@@ -73,13 +72,14 @@ class LUCIDTransformer:
 
         Args:
             chunks_and_detections: Pairs of (chunk, detection) to process.
-            max_concurrent: Maximum concurrent Ollama requests.
 
         Returns:
             List of TransformResult or BaseException, positionally matching input.
         """
         return asyncio.run(
-            self._transform_batch_async(chunks_and_detections, max_concurrent)
+            self._transform_batch_async(
+                chunks_and_detections, self._config.max_concurrent
+            )
         )
 
     async def _transform_batch_async(
@@ -94,6 +94,7 @@ class LUCIDTransformer:
             timeout=float(self._ollama_config.timeout_seconds),
         ) as client:
             await self._resolve_model(client)
+            await client.warm_up(self._model)
 
             async def process_one(
                 chunk: ProseChunk, detection: DetectionResult
@@ -170,6 +171,7 @@ class LUCIDTransformer:
             timeout=float(self._ollama_config.timeout_seconds),
         ) as client:
             await self._resolve_model(client)
+            await client.warm_up(self._model)
             if self._config.search_iterations > 1:
                 from lucid.transform.search import transformation_search
 
@@ -206,18 +208,23 @@ class LUCIDTransformer:
         options = GenerateOptions(temperature=self._temperature)
         result = await client.generate(prompt, self._model, options=options)
 
-        # Validate placeholders
+        # Validate and repair placeholders
+        output_text = result.text
         validation = self._term_protector.validate(
-            result.text, protected.term_placeholders, protected.math_placeholders
+            output_text, protected.term_placeholders, protected.math_placeholders
         )
         if not validation.is_valid:
-            raise ValueError(
-                f"LLM dropped placeholders: {validation.missing_placeholders}"
+            output_text, repair_ok = self._term_protector.repair(
+                output_text, protected.term_placeholders, protected.math_placeholders
             )
+            if not repair_ok:
+                raise ValueError(
+                    f"LLM dropped placeholders: {validation.missing_placeholders}"
+                )
 
         # Restore original terms
         restored = self._term_protector.restore(
-            result.text, protected.term_placeholders, protected.math_placeholders
+            output_text, protected.term_placeholders, protected.math_placeholders
         )
 
         return TransformResult(

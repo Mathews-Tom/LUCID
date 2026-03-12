@@ -220,6 +220,7 @@ __marimo__/
 *.onnx
 .model_cache/
 lucid_output/
+benchmarks/results/
 
 # Agentic Systems
 .agent

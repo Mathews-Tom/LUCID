@@ -13,6 +13,7 @@ import gc
 import logging
 import math
 import threading
+import warnings
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -77,6 +78,7 @@ class BinocularsDetector:
             try:
                 import torch
                 from transformers import AutoModelForCausalLM, AutoTokenizer
+                import transformers.utils.logging as tf_logging
             except ImportError as e:
                 from lucid.detector import BinocularsUnavailableError
 
@@ -84,14 +86,19 @@ class BinocularsDetector:
                     "torch and transformers required for Binoculars tier. "
                     "Install with: uv add torch transformers"
                 ) from e
+            prev_verbosity = tf_logging.get_verbosity()
+            tf_logging.set_verbosity_error()
             try:
-                self._tokenizer = AutoTokenizer.from_pretrained(self._observer_id)
-                self._observer = AutoModelForCausalLM.from_pretrained(
-                    self._observer_id, dtype=torch.float16
-                ).to("cpu")
-                self._performer = AutoModelForCausalLM.from_pretrained(
-                    self._performer_id, dtype=torch.float16
-                ).to("cpu")
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", category=UserWarning)
+
+                    self._tokenizer = AutoTokenizer.from_pretrained(self._observer_id)
+                    self._observer = AutoModelForCausalLM.from_pretrained(
+                        self._observer_id, dtype=torch.float16
+                    ).to("cpu")
+                    self._performer = AutoModelForCausalLM.from_pretrained(
+                        self._performer_id, dtype=torch.float16
+                    ).to("cpu")
                 self._observer.eval()
                 self._performer.eval()
                 self._loaded = True
@@ -101,6 +108,8 @@ class BinocularsDetector:
                 raise BinocularsUnavailableError(
                     f"Failed to load Binoculars models: {e}"
                 ) from e
+            finally:
+                tf_logging.set_verbosity(prev_verbosity)
 
     def _compute_raw_score(self, text: str) -> float:
         """Compute raw Binoculars perplexity ratio.

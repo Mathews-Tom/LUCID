@@ -646,12 +646,12 @@ output_dir = "./spectra_output"
 
 [ollama]
 host = "http://localhost:11434"
-timeout_seconds = 60
+timeout_seconds = 120
 health_check_on_start = true
 
 [ollama.models]
 fast = "phi3:3.8b"
-balanced = "qwen2.5:7b"
+balanced = "qwen3.5:latest"
 quality = "llama3.2:8b"
 
 [detection]

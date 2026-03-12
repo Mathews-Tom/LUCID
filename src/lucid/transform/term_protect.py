@@ -282,6 +282,44 @@ class TermProtector:
             missing_placeholders=tuple(missing),
         )
 
+    def repair(
+        self,
+        text: str,
+        term_placeholders: dict[str, str],
+        math_placeholders: dict[str, str],
+    ) -> tuple[str, bool]:
+        """Attempt to repair LLM output that dropped placeholders.
+
+        Two repair strategies:
+        1. If the LLM wrote the original term value instead of the placeholder,
+           replace the first occurrence of that value with the placeholder.
+        2. If the original value also isn't present (LLM rewrote it entirely),
+           the placeholder is unrecoverable — mark as failed.
+
+        Args:
+            text: LLM output text with potentially missing placeholders.
+            term_placeholders: Expected term placeholder → original value mapping.
+            math_placeholders: Expected math placeholder → original value mapping.
+
+        Returns:
+            Tuple of (repaired_text, success). success is True when all
+            placeholders are present after repair.
+        """
+        combined = {**term_placeholders, **math_placeholders}
+        repaired = text
+
+        for placeholder, original_value in combined.items():
+            if placeholder in repaired:
+                continue
+
+            # Strategy 1: LLM wrote the original value literally — swap it back
+            if original_value in repaired:
+                repaired = repaired.replace(original_value, placeholder, 1)
+
+        # Check if all placeholders are now present
+        still_missing = [p for p in combined if p not in repaired]
+        return repaired, len(still_missing) == 0
+
     # ------------------------------------------------------------------
     # Private extractors
     # ------------------------------------------------------------------

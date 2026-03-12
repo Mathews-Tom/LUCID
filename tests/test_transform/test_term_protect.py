@@ -607,3 +607,85 @@ class TestNerErrorHandling:
         )
         result = protector.protect(chunk)
         assert "Tuesday" not in result.term_placeholders.values()
+
+
+# ---------------------------------------------------------------------------
+# Repair method
+# ---------------------------------------------------------------------------
+
+
+class TestRepair:
+    def test_repair_when_llm_wrote_original_value(self) -> None:
+        """LLM dropped placeholder but wrote the original term literally."""
+        term_ph = {_placeholder("TERM", 0): "OpenAI"}
+        # LLM output has "OpenAI" instead of [TERM_000]
+        text = "OpenAI released a new model."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, term_ph, {})
+        assert ok is True
+        assert _placeholder("TERM", 0) in repaired
+        assert "OpenAI" not in repaired
+
+    def test_repair_when_placeholder_already_present(self) -> None:
+        """No repair needed — placeholder is intact."""
+        term_ph = {_placeholder("TERM", 0): "OpenAI"}
+        text = f"{_placeholder('TERM', 0)} released a new model."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, term_ph, {})
+        assert ok is True
+        assert repaired == text
+
+    def test_repair_fails_when_value_also_missing(self) -> None:
+        """LLM rewrote the term entirely — repair fails."""
+        term_ph = {_placeholder("TERM", 0): "OpenAI"}
+        text = "The company released a new model."
+        protector = TermProtector(_cfg(use_ner=False))
+        _, ok = protector.repair(text, term_ph, {})
+        assert ok is False
+
+    def test_repair_multiple_placeholders(self) -> None:
+        """Multiple dropped placeholders, all with original values present."""
+        term_ph = {
+            _placeholder("TERM", 0): "OpenAI",
+            _placeholder("TERM", 1): "GPT-4",
+        }
+        text = "OpenAI released GPT-4."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, term_ph, {})
+        assert ok is True
+        assert _placeholder("TERM", 0) in repaired
+        assert _placeholder("TERM", 1) in repaired
+
+    def test_repair_partial_success(self) -> None:
+        """One placeholder repairable, one not — reports failure."""
+        term_ph = {
+            _placeholder("TERM", 0): "OpenAI",
+            _placeholder("TERM", 1): "GPT-4",
+        }
+        # Only "OpenAI" present, "GPT-4" was rewritten to "the model"
+        text = "OpenAI released the model."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, term_ph, {})
+        assert ok is False
+        # The repairable one should still be fixed
+        assert _placeholder("TERM", 0) in repaired
+
+    def test_repair_math_placeholders(self) -> None:
+        """Repair also works for math placeholders."""
+        math_ph = {_placeholder("MATH", 0): r"\alpha"}
+        text = r"The variable \alpha is used."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, {}, math_ph)
+        assert ok is True
+        assert _placeholder("MATH", 0) in repaired
+
+    def test_repair_only_replaces_first_occurrence(self) -> None:
+        """When the original value appears multiple times, only the first is replaced."""
+        term_ph = {_placeholder("TERM", 0): "test"}
+        text = "This test shows test results."
+        protector = TermProtector(_cfg(use_ner=False))
+        repaired, ok = protector.repair(text, term_ph, {})
+        assert ok is True
+        # One occurrence replaced, one remains
+        assert _placeholder("TERM", 0) in repaired
+        assert "test" in repaired

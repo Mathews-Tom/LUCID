@@ -164,7 +164,7 @@ class TestLoadConfig:
         """Default model tags match design spec."""
         config = load_config()
         assert config.ollama.models.fast == "phi4:latest"
-        assert config.ollama.models.balanced == "qwen2.5:7b"
+        assert config.ollama.models.balanced == "qwen3.5:latest"
         assert config.ollama.models.quality == "llama3.1:latest"
 
     def test_ensemble_weights_default(self) -> None:
@@ -200,6 +200,7 @@ class TestLUCIDConfigDefaults:
         config = LUCIDConfig()
         assert config.transform.search_iterations == 8
         assert config.transform.search_target_score == 0.25
+        assert config.transform.max_concurrent == 2
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

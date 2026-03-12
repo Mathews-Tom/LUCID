@@ -196,14 +196,14 @@ class TestModelsCommand:
         mock_dl = mock_downloader_cls.return_value
         mock_dl.check_all.return_value = [
             ModelStatus(name="roberta-base", source="huggingface", available=True),
-            ModelStatus(name="qwen2.5:7b", source="ollama", available=False),
+            ModelStatus(name="qwen3.5:latest", source="ollama", available=False),
         ]
 
         result = runner.invoke(main, ["models"])
 
         assert result.exit_code == 0
         assert "roberta-base" in result.output
-        assert "qwen2.5:7b" in result.output
+        assert "qwen3.5:latest" in result.output
 
 
 class TestBatchMode:
@@ -249,7 +249,7 @@ class TestSetupCommand:
         mock_dl._check_huggingface_cache.return_value = True
         mock_dl.check_all.return_value = [
             ModelStatus(name="roberta-base", source="huggingface", available=True),
-            ModelStatus(name="qwen2.5:7b", source="ollama", available=True),
+            ModelStatus(name="qwen3.5:latest", source="ollama", available=True),
         ]
 
         result = runner.invoke(main, ["setup"])
@@ -302,7 +302,7 @@ class TestSetupCommand:
         mock_dl._check_huggingface_cache.return_value = False
         mock_dl.check_all.return_value = [
             ModelStatus(name="roberta-base", source="huggingface", available=True),
-            ModelStatus(name="qwen2.5:7b", source="ollama", available=True),
+            ModelStatus(name="qwen3.5:latest", source="ollama", available=True),
         ]
 
         result = runner.invoke(main, ["setup"])

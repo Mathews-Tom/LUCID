@@ -59,13 +59,13 @@ class TestCheckOllamaModel:
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
             "models": [
-                {"name": "qwen2.5:7b", "size": "4.4 GB"},
+                {"name": "qwen3.5:latest", "size": "4.4 GB"},
                 {"name": "llama3.2:8b", "size": "4.7 GB"},
             ]
         }
         mock_get.return_value = mock_resp
 
-        result = downloader.check_ollama_model("qwen2.5:7b")
+        result = downloader.check_ollama_model("qwen3.5:latest")
 
         assert result is True
 
@@ -82,7 +82,7 @@ class TestCheckOllamaModel:
         }
         mock_get.return_value = mock_resp
 
-        result = downloader.check_ollama_model("qwen2.5:7b")
+        result = downloader.check_ollama_model("qwen3.5:latest")
 
         assert result is False
 
@@ -129,7 +129,7 @@ class TestCheckAll:
         mock_resp = MagicMock()
         mock_resp.status_code = 200
         mock_resp.json.return_value = {
-            "models": [{"name": "qwen2.5:7b", "size": "4.4 GB"}]
+            "models": [{"name": "qwen3.5:latest", "size": "4.4 GB"}]
         }
         mock_get.return_value = mock_resp
 
@@ -144,4 +144,4 @@ class TestCheckAll:
         ollama_statuses = [s for s in statuses if s.source == "ollama"]
         assert len(ollama_statuses) == 1
         assert ollama_statuses[0].available is True
-        assert ollama_statuses[0].name == "qwen2.5:7b"
+        assert ollama_statuses[0].name == "qwen3.5:latest"

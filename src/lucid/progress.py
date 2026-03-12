@@ -148,10 +148,31 @@ class ProgressReporter:
         table.add_row("Total chunks", str(stats.get("total_chunks", 0)))
         table.add_row("Prose chunks", str(stats.get("prose_chunks", 0)))
         table.add_row("AI-detected", str(stats.get("ai_detected", 0)))
-        table.add_row("Transformed", str(stats.get("transformed", 0)))
+        transformed = stats.get("transformed", 0)
+        table.add_row("Transformed", str(transformed))
         table.add_row("Eval passed", str(stats.get("eval_passed", 0)))
         table.add_row("Eval failed", str(stats.get("eval_failed", 0)))
-        table.add_row("Skipped (failed)", str(stats.get("failed", 0)))
+        failed = stats.get("failed", 0)
+        if failed > 0:
+            table.add_row(
+                "Skipped (failed)",
+                f"[red]{failed}[/red]",
+            )
+        else:
+            table.add_row("Skipped (failed)", "0")
+
+        ai_detected = stats.get("ai_detected", 0)
+        if ai_detected > 0 and transformed == 0 and failed > 0:
+            table.add_row(
+                "[bold red]WARNING[/bold red]",
+                "[red]All transformations failed — output is identical to input[/red]",
+            )
+
+        # Surface transformation failure reasons
+        failure_reasons = stats.get("failure_reasons", {})
+        if failure_reasons:
+            reason_parts = [f"{reason} ({count})" for reason, count in failure_reasons.items()]
+            table.add_row("Failure reasons", "; ".join(reason_parts))
 
         # Surface evaluation rejection reasons
         rejected = [e for e in document_result.evaluations if not e.passed]

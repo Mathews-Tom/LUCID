@@ -53,7 +53,7 @@ def _make_configs(
     oconfig = OllamaConfig(
         host="http://localhost:11434",
         timeout_seconds=30,
-        models=OllamaModelsConfig(fast="phi3:3.8b", balanced="qwen2.5:7b", quality="llama3.2:8b"),
+        models=OllamaModelsConfig(fast="phi3:3.8b", balanced="qwen3.5:latest", quality="llama3.2:8b"),
     )
     return hconfig, oconfig
 
@@ -204,7 +204,7 @@ class TestModelSelection:
         hconfig, oconfig = _make_configs()
         detector = MagicMock()
         transformer = LUCIDTransformer(hconfig, oconfig, detector, profile="balanced")
-        assert transformer._model == "qwen2.5:7b"
+        assert transformer._model == "qwen3.5:latest"
 
     def test_quality_profile_uses_quality_model(self) -> None:
         hconfig, oconfig = _make_configs()

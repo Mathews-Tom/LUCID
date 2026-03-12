@@ -24,6 +24,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# After this many consecutive placeholder failures, abort the search loop.
+_CONSECUTIVE_FAIL_ABORT = 3
+
 
 async def transformation_search(
     chunk: ProseChunk,
@@ -67,10 +70,26 @@ async def transformation_search(
     # Scale num_predict with input length to avoid truncation on long chunks
     input_token_estimate = len(protected.text.split()) * 2
     num_predict = max(512, min(2048, int(input_token_estimate * 1.3)))
-    options = GenerateOptions(temperature=temperature, num_predict=num_predict)
+
+    # Build a test prompt to measure actual token overhead
+    test_operator = select_operator(0, placeholder_count=placeholder_count)
+    test_prompt = prompt_builder.build(
+        protected.text,
+        test_operator,
+        chunk.domain_hint or "general",
+        profile,
+        placeholders=protected.all_placeholders(),
+    )
+    prompt_token_estimate = len(test_prompt.split()) * 2
+    num_ctx = prompt_token_estimate + num_predict
+
+    options = GenerateOptions(
+        temperature=temperature, num_predict=num_predict, num_ctx=num_ctx,
+    )
 
     best: TransformResult | None = None
     domain = chunk.domain_hint or "general"
+    consecutive_failures = 0
 
     for i in range(config.search_iterations):
         operator = select_operator(i, placeholder_count=placeholder_count)
@@ -97,39 +116,78 @@ async def transformation_search(
             raise
 
         # Validate placeholders
+        output_text = result.text
         validation = term_protector.validate(
-            result.text, protected.term_placeholders, protected.math_placeholders
+            output_text, protected.term_placeholders, protected.math_placeholders
         )
         if not validation.is_valid:
-            logger.warning(
-                "Iteration %d: LLM dropped placeholders %s, retrying with lower temp",
-                i,
-                validation.missing_placeholders,
+            # Try repair: LLM may have written original values instead of placeholders
+            repaired_text, repair_ok = term_protector.repair(
+                output_text, protected.term_placeholders, protected.math_placeholders
             )
-            # Retry once with reduced temperature (less creativity, more literal copying)
-            retry_temp = max(0.1, temperature - 0.2)
-            retry_options = GenerateOptions(
-                temperature=retry_temp, num_predict=options.num_predict
-            )
-            try:
-                retry_result = await client.generate(prompt, model, options=retry_options)
-            except OllamaError:
-                logger.warning("Iteration %d: retry generation also failed", i)
-                continue
-            retry_validation = term_protector.validate(
-                retry_result.text,
-                protected.term_placeholders,
-                protected.math_placeholders,
-            )
-            if not retry_validation.is_valid:
-                logger.warning("Iteration %d: retry also dropped placeholders, skipping", i)
-                continue
-            result = retry_result
-            validation = retry_validation
+            if repair_ok:
+                logger.info(
+                    "Iteration %d: repaired %d dropped placeholders",
+                    i,
+                    len(validation.missing_placeholders),
+                )
+                output_text = repaired_text
+                consecutive_failures = 0
+            else:
+                logger.warning(
+                    "Iteration %d: LLM dropped placeholders %s, retrying with lower temp",
+                    i,
+                    validation.missing_placeholders,
+                )
+                # Retry once with reduced temperature
+                retry_temp = max(0.1, temperature - 0.2)
+                retry_options = GenerateOptions(
+                    temperature=retry_temp, num_predict=options.num_predict,
+                    num_ctx=options.num_ctx,
+                )
+                try:
+                    retry_result = await client.generate(prompt, model, options=retry_options)
+                except OllamaError:
+                    logger.warning("Iteration %d: retry generation also failed", i)
+                    consecutive_failures += 1
+                    if consecutive_failures >= _CONSECUTIVE_FAIL_ABORT:
+                        logger.warning(
+                            "Aborting search after %d consecutive placeholder failures",
+                            consecutive_failures,
+                        )
+                        break
+                    continue
+
+                # Try repair on retry output too
+                retry_text = retry_result.text
+                retry_validation = term_protector.validate(
+                    retry_text, protected.term_placeholders, protected.math_placeholders
+                )
+                if not retry_validation.is_valid:
+                    retry_text, retry_repair_ok = term_protector.repair(
+                        retry_text, protected.term_placeholders, protected.math_placeholders
+                    )
+                    if not retry_repair_ok:
+                        logger.warning(
+                            "Iteration %d: retry also dropped placeholders, skipping", i
+                        )
+                        consecutive_failures += 1
+                        if consecutive_failures >= _CONSECUTIVE_FAIL_ABORT:
+                            logger.warning(
+                                "Aborting search after %d consecutive placeholder failures",
+                                consecutive_failures,
+                            )
+                            break
+                        continue
+
+                output_text = retry_text
+                consecutive_failures = 0
+        else:
+            consecutive_failures = 0
 
         # Restore placeholders and re-score
         restored = term_protector.restore(
-            result.text, protected.term_placeholders, protected.math_placeholders
+            output_text, protected.term_placeholders, protected.math_placeholders
         )
 
         temp_chunk = ProseChunk(
