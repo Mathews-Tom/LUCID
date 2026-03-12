@@ -36,7 +36,7 @@ class OllamaModelsConfig:
     """Model tags per quality profile."""
 
     fast: str = "phi4:latest"
-    balanced: str = "qwen2.5:7b"
+    balanced: str = "qwen3.5:latest"
     quality: str = "llama3.2:latest"
 
 
@@ -45,7 +45,7 @@ class OllamaConfig:
     """Ollama server connection settings."""
 
     host: str = "http://localhost:11434"
-    timeout_seconds: int = 60
+    timeout_seconds: int = 120
     health_check_on_start: bool = True
     models: OllamaModelsConfig = field(default_factory=OllamaModelsConfig)
 
@@ -116,6 +116,7 @@ class TransformConfig:
     """Transform engine settings."""
 
     max_retries: int = 3
+    max_concurrent: int = 2
     search_iterations: int = 8
     search_target_score: float = 0.25
     transform_ambiguous: bool = True

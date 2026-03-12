@@ -9,6 +9,7 @@ use_statistical = false
 
 [transform]
 max_retries = 1
+max_concurrent = 4
 search_iterations = 1
 
 [evaluator]
