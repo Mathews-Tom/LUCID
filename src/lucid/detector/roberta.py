@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import math
 import threading
+import warnings
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -129,19 +130,28 @@ def _load_model(model_id: str) -> tuple[ort.InferenceSession, _AutoTokenizer]:
     """
     try:
         from transformers import AutoTokenizer
+        import transformers.utils.logging as tf_logging
     except ImportError as exc:
         raise DetectorInitError(
             "transformers is required. Install with: uv add transformers"
         ) from exc
 
+    prev_verbosity = tf_logging.get_verbosity()
+    tf_logging.set_verbosity_error()
     try:
-        tokenizer: _AutoTokenizer = AutoTokenizer.from_pretrained(model_id)
-    except Exception as exc:
-        raise DetectorInitError(
-            f"Failed to load tokenizer for {model_id!r}: {exc}"
-        ) from exc
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=UserWarning)
 
-    session = _load_onnx_session(model_id)
+            try:
+                tokenizer: _AutoTokenizer = AutoTokenizer.from_pretrained(model_id)
+            except Exception as exc:
+                raise DetectorInitError(
+                    f"Failed to load tokenizer for {model_id!r}: {exc}"
+                ) from exc
+
+            session = _load_onnx_session(model_id)
+    finally:
+        tf_logging.set_verbosity(prev_verbosity)
     return session, tokenizer
 
 
