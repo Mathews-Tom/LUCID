@@ -4,22 +4,23 @@ from __future__ import annotations
 
 import enum
 import logging
-from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from lucid.checkpoint import CheckpointManager
+from lucid.detector.statistical import MIN_WORDS_THRESHOLD
 from lucid.models.manager import ModelManager
 from lucid.models.results import DetectionResult, DocumentResult, TransformResult
 from lucid.parser import detect_format, get_adapter
 from lucid.parser.chunk import ProseChunk
 from lucid.parser.merge import merge_prose_for_detection
-from lucid.detector.statistical import MIN_WORDS_THRESHOLD
 from lucid.progress import PipelineEvent
 from lucid.reconstructor import validate_latex, validate_markdown
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+    from pathlib import Path
+
     from lucid.config import LUCIDConfig
 
 logger = logging.getLogger(__name__)
@@ -134,7 +135,7 @@ class LUCIDPipeline:
             f"Detecting {len(pending_groups)} groups (parallel)",
         )
 
-        with ThreadPoolExecutor(max_workers=4) as executor:
+        with ThreadPoolExecutor(max_workers=self._config.detection.max_concurrent) as executor:
             futures = {}
             for i, merged_text, constituent_chunks in pending_groups:
                 temp_chunk = ProseChunk(
@@ -201,8 +202,6 @@ class LUCIDPipeline:
         if target_chunks:
             model_mgr.release_detection_models()
             model_mgr.initialize_transformer()
-            if not self._skip_eval:
-                model_mgr.initialize_evaluator()
 
             # Filter chunks that still need transformation
             pending_chunks = [
@@ -227,14 +226,26 @@ class LUCIDPipeline:
                     (chunk, detection_map[chunk.id]) for chunk in pending_chunks
                 ]
 
+                def _on_chunk_done(done: int, total: int) -> None:
+                    self._emit(
+                        progress_callback,
+                        PipelineState.TRANSFORMING,
+                        None,
+                        done,
+                        total_targets,
+                        f"Transformed {done}/{total} chunks",
+                    )
+
                 # transform_batch returns results positionally; failures raise per-chunk
                 # Use individual error handling by processing via gather with return_exceptions
                 batch_results: list[TransformResult | BaseException] = (
-                    model_mgr.transformer.transform_batch(chunks_and_detections)
+                    model_mgr.transformer.transform_batch(
+                        chunks_and_detections, on_chunk_done=_on_chunk_done,
+                    )
                 )
 
                 transform_map: dict[str, TransformResult] = {}
-                for chunk, result in zip(pending_chunks, batch_results):
+                for chunk, result in zip(pending_chunks, batch_results, strict=True):
                     if isinstance(result, BaseException):
                         logger.error("Chunk %s transformation failed: %s", chunk.id, result)
                         failed_ids[chunk.id] = str(result)
@@ -263,6 +274,7 @@ class LUCIDPipeline:
                     # --- Parallel evaluation ---
                     eval_chunks = [c for c in pending_chunks if c.id in transform_map]
                     if eval_chunks:
+                        model_mgr.initialize_evaluator()
                         self._emit(
                             progress_callback,
                             PipelineState.EVALUATING,
@@ -272,7 +284,9 @@ class LUCIDPipeline:
                             f"Evaluating {len(eval_chunks)} chunks (parallel)",
                         )
 
-                        with ThreadPoolExecutor(max_workers=4) as executor:
+                        with ThreadPoolExecutor(
+                            max_workers=self._config.evaluator.max_concurrent
+                        ) as executor:
                             eval_futures = {}
                             for chunk in eval_chunks:
                                 p = transform_map[chunk.id]
@@ -477,6 +491,9 @@ class LUCIDPipeline:
         prose_count = sum(
             1 for c in doc_result.chunks if isinstance(c, ProseChunk)
         )
+        changed_transforms = sum(
+            1 for t in doc_result.transforms if t.transformed_text != t.original_text
+        )
         ai_detected = sum(
             1
             for d in doc_result.detections
@@ -484,6 +501,12 @@ class LUCIDPipeline:
         )
         eval_passed = sum(1 for e in doc_result.evaluations if e.passed)
         eval_failed = sum(1 for e in doc_result.evaluations if not e.passed)
+        fallback_modes: dict[str, int] = {}
+        for transform in doc_result.transforms:
+            if transform.fallback_mode is not None:
+                fallback_modes[transform.fallback_mode] = (
+                    fallback_modes.get(transform.fallback_mode, 0) + 1
+                )
 
         # Aggregate failure reasons for summary display
         failure_reasons: dict[str, int] = {}
@@ -503,9 +526,11 @@ class LUCIDPipeline:
             "total_chunks": len(doc_result.chunks),
             "prose_chunks": prose_count,
             "ai_detected": ai_detected,
-            "transformed": len(doc_result.transforms),
+            "transformed": changed_transforms,
+            "unchanged": len(doc_result.transforms) - changed_transforms,
             "eval_passed": eval_passed,
             "eval_failed": eval_failed,
             "failed": len(failed_ids),
             "failure_reasons": failure_reasons,
+            "fallback_modes": fallback_modes,
         }
