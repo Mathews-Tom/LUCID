@@ -179,40 +179,47 @@ class TermProtector:
 
         # Accumulate spans in priority order (highest priority first).
         # Each extractor adds to `occupied` before the next one runs.
-        spans: list[tuple[int, int, str]] = []
+        spans: list[tuple[int, int, str, int]] = []
 
         # Priority 1: math placeholders — already in `occupied`, skip.
 
         # Priority 2: citations
         if self._config.protect_citations:
             new = _collect_spans_from_patterns(text, CITATION_PATTERNS, occupied)
-            spans.extend(new)
+            spans.extend((start, end, matched, 2) for start, end, matched in new)
 
         # Priority 3: named entities via spaCy NER
         if self._config.use_ner:
             new = self._extract_ner_spans(text, occupied)
-            spans.extend(new)
+            spans.extend((start, end, matched, 3) for start, end, matched in new)
 
         # Priority 4: custom terms
         if self._config.custom_terms:
             new = self._extract_custom_spans(text, occupied)
-            spans.extend(new)
+            spans.extend((start, end, matched, 4) for start, end, matched in new)
 
         # Priority 5: numbers
         if self._config.protect_numbers:
             new = self._extract_number_spans(text, occupied)
-            spans.extend(new)
+            spans.extend((start, end, matched, 5) for start, end, matched in new)
 
         # Priority 6: capitalized multi-word phrases
-        new = self._extract_cap_phrase_spans(text, occupied)
-        spans.extend(new)
+        if self._config.protect_cap_phrases:
+            new = self._extract_cap_phrase_spans(text, occupied)
+            spans.extend((start, end, matched, 6) for start, end, matched in new)
+
+        # Enforce max_placeholders using explicit priority first, then position.
+        max_ph = self._config.max_placeholders
+        if max_ph > 0 and len(spans) > max_ph:
+            spans.sort(key=lambda t: (t[3], t[0]))
+            spans = spans[:max_ph]
 
         # Sort spans right-to-left so replacements don't shift earlier offsets.
         spans.sort(key=lambda t: t[0], reverse=True)
 
         term_placeholders: dict[str, str] = {}
         result = text
-        for start, end, original in spans:
+        for start, end, original, _priority in spans:
             placeholder = f"{_OPEN}TERM_{counter[0]:03d}{_CLOSE}"
             counter[0] += 1
             term_placeholders[placeholder] = original
@@ -290,11 +297,10 @@ class TermProtector:
     ) -> tuple[str, bool]:
         """Attempt to repair LLM output that dropped placeholders.
 
-        Two repair strategies:
-        1. If the LLM wrote the original term value instead of the placeholder,
-           replace the first occurrence of that value with the placeholder.
-        2. If the original value also isn't present (LLM rewrote it entirely),
-           the placeholder is unrecoverable — mark as failed.
+        Three repair strategies (applied in order):
+        1. Exact match: LLM wrote the original term value literally.
+        2. Case-insensitive match: LLM changed casing of the term.
+        3. Normalized match: LLM added/removed hyphens or minor punctuation.
 
         Args:
             text: LLM output text with potentially missing placeholders.
@@ -312,9 +318,27 @@ class TermProtector:
             if placeholder in repaired:
                 continue
 
-            # Strategy 1: LLM wrote the original value literally — swap it back
+            # Strategy 1: exact literal match
             if original_value in repaired:
                 repaired = repaired.replace(original_value, placeholder, 1)
+                continue
+
+            # Strategy 2: case-insensitive match
+            lower_val = original_value.lower()
+            lower_rep = repaired.lower()
+            idx = lower_rep.find(lower_val)
+            if idx != -1:
+                repaired = repaired[:idx] + placeholder + repaired[idx + len(original_value):]
+                continue
+
+            # Strategy 3: normalized match (collapse hyphens/spaces)
+            # Build a regex that treats spaces and hyphens as interchangeable
+            escaped_parts = [re.escape(p) for p in re.split(r"[\s\-]+", original_value) if p]
+            if len(escaped_parts) > 1:
+                flex_pattern = r"[\s\-]+".join(escaped_parts)
+                m = re.search(flex_pattern, repaired, re.IGNORECASE)
+                if m:
+                    repaired = repaired[:m.start()] + placeholder + repaired[m.end():]
 
         # Check if all placeholders are now present
         still_missing = [p for p in combined if p not in repaired]

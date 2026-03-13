@@ -19,6 +19,7 @@ enabled = true
 roberta_model = "openai-community/roberta-base-openai-detector"
 use_statistical = true
 use_binoculars = false
+max_concurrent = 4
 
 [detection.ensemble_weights]
 roberta = 0.7
@@ -38,27 +39,32 @@ ambiguity_triggers_binoculars = true
 max_retries = 3
 max_concurrent = 2
 search_iterations = 8
-search_target_score = 0.25
+search_target_score = 0.35
 transform_ambiguous = true
+semantic_gate_threshold = 0.55
+fallback_policy = "mark_failed"
 
 [transform.temperature]
 fast = 0.7
-balanced = 0.6
-quality = 0.5
+balanced = 0.5
+quality = 0.4
 
 [transform.term_protection]
 use_ner = true
 custom_terms = []
 protect_citations = true
 protect_numbers = true
+protect_cap_phrases = true
+max_placeholders = 8
 
 [evaluator]
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_threshold = 0.75
+embedding_threshold = 0.70
 nli_model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
 nli_require_bidirectional = true
 bertscore_threshold = 0.85
 bertscore_model = "microsoft/deberta-xlarge-mnli"
+max_concurrent = 2
 
 [parser]
 latex_library = "pylatexenc"

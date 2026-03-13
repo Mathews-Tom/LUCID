@@ -7,13 +7,13 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lucid.config import TermProtectionConfig
+from lucid.parser.chunk import ProseChunk
 from lucid.transform.term_protect import (
     _CLOSE,
     _OPEN,
     ProtectedText,
     TermProtector,
 )
-from lucid.parser.chunk import ProseChunk
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -336,6 +336,30 @@ class TestOverlapResolution:
         result = protector.protect(chunk)
         # Monte Carlo appears exactly once as a placeholder
         assert list(result.term_placeholders.values()).count("Monte Carlo") == 1
+
+    @patch("spacy.load")
+    def test_max_placeholders_respects_priority_before_position(
+        self, mock_load: MagicMock
+    ) -> None:
+        """Later citations should not be dropped behind earlier low-priority numbers."""
+        text = "Dataset 100 uses baseline 200. See [Smith, 2024] for details."
+        mock_load.return_value = _make_mock_nlp([])
+        chunk = _make_chunk(text)
+        protector = TermProtector(
+            _cfg(
+                use_ner=True,
+                protect_citations=True,
+                protect_numbers=True,
+                protect_cap_phrases=False,
+                max_placeholders=2,
+            )
+        )
+
+        result = protector.protect(chunk)
+
+        values = set(result.term_placeholders.values())
+        assert "[Smith, 2024]" in values
+        assert "100" in values or "200" in values
 
 
 # ---------------------------------------------------------------------------
