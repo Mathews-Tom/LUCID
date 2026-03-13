@@ -84,6 +84,7 @@ class DetectionConfig:
     roberta_model: str = "openai-community/roberta-base-openai-detector"
     use_statistical: bool = True
     use_binoculars: bool = False
+    max_concurrent: int = 4
     statistical_feature_tier: str = "standard"  # fast, standard, deep
     ensemble_weights: EnsembleWeightsConfig = field(default_factory=EnsembleWeightsConfig)
     ensemble_weights_with_binoculars: EnsembleWeightsWithBinocularsConfig = field(
@@ -109,6 +110,8 @@ class TermProtectionConfig:
     custom_terms: tuple[str, ...] = ()
     protect_citations: bool = True
     protect_numbers: bool = True
+    protect_cap_phrases: bool = True
+    max_placeholders: int = 8
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,6 +123,8 @@ class TransformConfig:
     search_iterations: int = 8
     search_target_score: float = 0.25
     transform_ambiguous: bool = True
+    semantic_gate_threshold: float = 0.0
+    fallback_policy: str = "mark_failed"
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
 
@@ -134,6 +139,7 @@ class EvaluatorConfig:
     nli_require_bidirectional: bool = True
     bertscore_threshold: float = 0.85
     bertscore_model: str = "microsoft/deberta-xlarge-mnli"
+    max_concurrent: int = 2
 
 
 @dataclass(frozen=True, slots=True)

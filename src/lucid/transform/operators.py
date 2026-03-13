@@ -29,9 +29,13 @@ class Operator(Enum):
 def select_operator(iteration: int, placeholder_count: int = 0) -> Operator:
     """Select an operator via round-robin over the iteration index.
 
-    Skips REORDER when placeholder_count > 3 to reduce placeholder drops.
+    Becomes more conservative as placeholder pressure rises:
+    - >3 placeholders: skip REORDER
+    - >5 placeholders: use only STANDARD and RESTRUCTURE
     """
     members = list(Operator)
-    if placeholder_count > 3:
+    if placeholder_count > 5:
+        members = [Operator.STANDARD, Operator.RESTRUCTURE]
+    elif placeholder_count > 3:
         members = [s for s in members if s != Operator.REORDER]
     return members[iteration % len(members)]

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING
 
 from lucid.transform.ollama import GenerateOptions, OllamaClient
@@ -63,6 +64,7 @@ class LUCIDTransformer:
     def transform_batch(
         self,
         chunks_and_detections: list[tuple[ProseChunk, DetectionResult]],
+        on_chunk_done: Callable[[int, int], None] | None = None,
     ) -> list[TransformResult | BaseException]:
         """Transform multiple chunks concurrently via a single event loop.
 
@@ -72,13 +74,14 @@ class LUCIDTransformer:
 
         Args:
             chunks_and_detections: Pairs of (chunk, detection) to process.
+            on_chunk_done: Optional callback(completed_count, total) for progress.
 
         Returns:
             List of TransformResult or BaseException, positionally matching input.
         """
         return asyncio.run(
             self._transform_batch_async(
-                chunks_and_detections, self._config.max_concurrent
+                chunks_and_detections, self._config.max_concurrent, on_chunk_done,
             )
         )
 
@@ -86,9 +89,13 @@ class LUCIDTransformer:
         self,
         chunks_and_detections: list[tuple[ProseChunk, DetectionResult]],
         max_concurrent: int,
+        on_chunk_done: Callable[[int, int], None] | None = None,
     ) -> list[TransformResult | BaseException]:
         """Async implementation of batch transformation."""
         semaphore = asyncio.Semaphore(max_concurrent)
+        total = len(chunks_and_detections)
+        completed_count = 0
+
         async with OllamaClient(
             host=self._ollama_config.host,
             timeout=float(self._ollama_config.timeout_seconds),
@@ -99,22 +106,28 @@ class LUCIDTransformer:
             async def process_one(
                 chunk: ProseChunk, detection: DetectionResult
             ) -> TransformResult:
+                nonlocal completed_count
                 async with semaphore:
-                    if self._config.search_iterations > 1:
-                        from lucid.transform.search import transformation_search
+                    try:
+                        if self._config.search_iterations > 1:
+                            from lucid.transform.search import transformation_search
 
-                        return await transformation_search(
-                            chunk=chunk,
-                            detection=detection,
-                            client=client,
-                            detector=self._detector,
-                            term_protector=self._term_protector,
-                            prompt_builder=self._prompt_builder,
-                            config=self._config,
-                            model=self._model,
-                            profile=self._profile,
-                        )
-                    return await self._single_pass(chunk, detection, client)
+                            return await transformation_search(
+                                chunk=chunk,
+                                detection=detection,
+                                client=client,
+                                detector=self._detector,
+                                term_protector=self._term_protector,
+                                prompt_builder=self._prompt_builder,
+                                config=self._config,
+                                model=self._model,
+                                profile=self._profile,
+                            )
+                        return await self._single_pass(chunk, detection, client)
+                    finally:
+                        completed_count += 1
+                        if on_chunk_done is not None:
+                            on_chunk_done(completed_count, total)
 
             tasks = [
                 process_one(chunk, detection)

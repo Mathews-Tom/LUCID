@@ -3,3 +3,6 @@ profile = "balanced"
 
 [transform]
 search_iterations = 5
+
+[evaluator]
+nli_require_bidirectional = false

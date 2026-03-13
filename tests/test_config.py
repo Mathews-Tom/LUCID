@@ -119,6 +119,7 @@ class TestLoadConfig:
         """Balanced profile is the default."""
         config = load_config()
         assert config.general.profile == "balanced"
+        assert config.evaluator.nli_require_bidirectional is False
 
     def test_fast_profile(self) -> None:
         """Fast profile overrides apply correctly."""
@@ -135,6 +136,7 @@ class TestLoadConfig:
         assert config.detection.use_binoculars is True
         assert config.ollama.timeout_seconds == 120
         assert config.transform.max_retries == 5
+        assert config.evaluator.nli_require_bidirectional is True
 
     def test_cli_override_scalar(self) -> None:
         """CLI override changes a scalar value."""
@@ -201,6 +203,8 @@ class TestLUCIDConfigDefaults:
         assert config.transform.search_iterations == 8
         assert config.transform.search_target_score == 0.25
         assert config.transform.max_concurrent == 2
+        assert config.transform.semantic_gate_threshold == 0.0
+        assert config.transform.fallback_policy == "mark_failed"
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

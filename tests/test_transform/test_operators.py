@@ -62,6 +62,28 @@ def test_select_operator_wraps_at_five() -> None:
     assert select_operator(4) == select_operator(9)
 
 
+def test_select_operator_skips_reorder_for_many_placeholders() -> None:
+    seen = {select_operator(i, placeholder_count=4) for i in range(8)}
+    assert Operator.REORDER not in seen
+    assert seen == {
+        Operator.STANDARD,
+        Operator.RESTRUCTURE,
+        Operator.VOICE_SHIFT,
+        Operator.VOCABULARY,
+    }
+
+
+def test_select_operator_uses_safe_subset_for_heavy_placeholders() -> None:
+    expected = [
+        Operator.STANDARD,
+        Operator.RESTRUCTURE,
+        Operator.STANDARD,
+        Operator.RESTRUCTURE,
+    ]
+    for i, exp in enumerate(expected):
+        assert select_operator(i, placeholder_count=6) == exp
+
+
 def test_prompt_modifier_returns_value() -> None:
     for operator in Operator:
         assert operator.prompt_modifier == operator.value

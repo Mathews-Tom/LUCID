@@ -98,6 +98,8 @@ class TransformResult:
     iteration_count: int
     operator_used: str
     final_detection_score: float
+    semantic_similarity: float | None = None
+    fallback_mode: str | None = None
 
     def __post_init__(self) -> None:
         _validate_score(self.final_detection_score, "final_detection_score")
@@ -106,7 +108,7 @@ class TransformResult:
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary."""
-        return {
+        d: dict[str, Any] = {
             "chunk_id": self.chunk_id,
             "original_text": self.original_text,
             "transformed_text": self.transformed_text,
@@ -114,6 +116,11 @@ class TransformResult:
             "operator_used": self.operator_used,
             "final_detection_score": self.final_detection_score,
         }
+        if self.semantic_similarity is not None:
+            d["semantic_similarity"] = self.semantic_similarity
+        if self.fallback_mode is not None:
+            d["fallback_mode"] = self.fallback_mode
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> TransformResult:
@@ -125,6 +132,8 @@ class TransformResult:
             iteration_count=data["iteration_count"],
             operator_used=data["operator_used"],
             final_detection_score=data["final_detection_score"],
+            semantic_similarity=data.get("semantic_similarity"),
+            fallback_mode=data.get("fallback_mode"),
         )
 
 

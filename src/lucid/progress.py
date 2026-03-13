@@ -8,7 +8,6 @@ import time
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from rich.console import Console
 from rich.progress import (
     BarColumn,
     MofNCompleteColumn,
@@ -20,6 +19,7 @@ from rich.progress import (
 from rich.table import Table
 
 if TYPE_CHECKING:
+    from rich.console import Console
     from rich.progress import TaskID
 
     from lucid.models.results import DocumentResult
@@ -150,6 +150,9 @@ class ProgressReporter:
         table.add_row("AI-detected", str(stats.get("ai_detected", 0)))
         transformed = stats.get("transformed", 0)
         table.add_row("Transformed", str(transformed))
+        unchanged = stats.get("unchanged", 0)
+        if unchanged > 0:
+            table.add_row("Unchanged", str(unchanged))
         table.add_row("Eval passed", str(stats.get("eval_passed", 0)))
         table.add_row("Eval failed", str(stats.get("eval_failed", 0)))
         failed = stats.get("failed", 0)
@@ -173,6 +176,11 @@ class ProgressReporter:
         if failure_reasons:
             reason_parts = [f"{reason} ({count})" for reason, count in failure_reasons.items()]
             table.add_row("Failure reasons", "; ".join(reason_parts))
+
+        fallback_modes = stats.get("fallback_modes", {})
+        if fallback_modes:
+            mode_parts = [f"{mode} ({count})" for mode, count in fallback_modes.items()]
+            table.add_row("Fallback modes", "; ".join(mode_parts))
 
         # Surface evaluation rejection reasons
         rejected = [e for e in document_result.evaluations if not e.passed]

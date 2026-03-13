@@ -29,11 +29,15 @@ _SYSTEM_PROMPT = (
 )
 
 _RULES = (
-    "RULES:\n"
-    "- Preserve all terms marked with [TERM_NNN] exactly as-is (never modify)\n"
-    "- Preserve all mathematical placeholders [MATH_NNN] exactly as-is\n"
-    "- Do NOT add new information or remove existing claims\n"
-    "- Do NOT introduce self-contradictions\n"
+    "CRITICAL RULES:\n"
+    "- Every [TERM_NNN] and [MATH_NNN] token MUST appear in your output EXACTLY "
+    "as written. Do NOT replace them with their values. Do NOT remove them. "
+    "Do NOT modify the brackets or numbers. Copy them character-for-character.\n"
+    "- Preserve EVERY factual claim, causal relationship, and logical argument. "
+    "If the original says X causes Y, your output must say X causes Y.\n"
+    "- Do NOT add new information, remove existing claims, or change what is "
+    "attributed to whom\n"
+    "- Do NOT reverse, weaken, or strengthen any stated conclusion\n"
     "- Do NOT significantly reorder paragraph structure (preserve logical flow)\n"
     "- Maintain the same level of technical precision as the original\n"
     "- Return only the rewritten paragraph; no commentary or explanation"

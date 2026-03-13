@@ -230,6 +230,38 @@ class TestEvaluationPipeline:
     @patch("lucid.evaluator.pipeline.NLIChecker")
     @patch("lucid.evaluator.pipeline.EmbeddingSimilarity")
     @patch("lucid.evaluator.pipeline.TermVerifier")
+    def test_nli_unidirectional_mode_backward_only(
+        self,
+        mock_tv_cls: MagicMock,
+        mock_emb_cls: MagicMock,
+        mock_nli_cls: MagicMock,
+        _mock_bert_cls: MagicMock,
+    ) -> None:
+        """With bidirectional=False, entailment in either direction is sufficient."""
+        cfg = _make_config(nli_require_bidirectional=False)
+        mock_tv_cls.return_value.verify.return_value = TermVerificationResult(
+            passed=True,
+            missing_placeholders=(),
+            mismatched_numbers=(),
+            reason=None,
+        )
+        mock_emb_cls.return_value.compute.return_value = EmbeddingResult(similarity=0.90)
+        mock_nli_cls.return_value.check.return_value = NLIResult(
+            forward_label="not_entailment",
+            backward_label="entailment",
+            forward_scores={"entailment": 0.15, "not_entailment": 0.85},
+            backward_scores={"entailment": 0.83, "not_entailment": 0.17},
+        )
+
+        pipeline = EvaluationPipeline(cfg)
+        result = pipeline.run("chunk_6b", "original", "partial paraphrase")
+
+        assert result.passed is True
+
+    @patch("lucid.evaluator.pipeline.BERTScoreChecker")
+    @patch("lucid.evaluator.pipeline.NLIChecker")
+    @patch("lucid.evaluator.pipeline.EmbeddingSimilarity")
+    @patch("lucid.evaluator.pipeline.TermVerifier")
     def test_bertscore_gated_by_options(
         self,
         mock_tv_cls: MagicMock,

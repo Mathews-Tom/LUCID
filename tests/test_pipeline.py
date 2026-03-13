@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,7 +15,11 @@ from lucid.models.results import (
     TransformResult,
 )
 from lucid.pipeline import LUCIDPipeline, PipelineState
-from lucid.progress import PipelineEvent
+
+if TYPE_CHECKING:
+    from pathlib import Path
+
+    from lucid.progress import PipelineEvent
 
 
 @pytest.fixture
@@ -149,7 +153,7 @@ class TestRunFullPipeline:
         # Detector returns ai_generated for all chunks
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
         # Pipeline calls transform_batch, which returns a list of results
-        mock_transformer.transform_batch.side_effect = lambda pairs: [
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
             _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
         ]
         mock_evaluator.evaluate_chunk.side_effect = (
@@ -166,6 +170,7 @@ class TestRunFullPipeline:
         assert len(result.transforms) > 0
         assert len(result.evaluations) > 0
         assert result.summary_stats["total_chunks"] > 0
+        assert result.summary_stats["transformed"] == len(result.transforms)
         mock_mgr.shutdown.assert_called_once()
 
 
@@ -267,7 +272,7 @@ class TestErrorIsolation:
 
         mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
         # Pipeline calls transform_batch; return exceptions to simulate failures
-        mock_transformer.transform_batch.side_effect = lambda pairs: [
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
             RuntimeError("Ollama timeout") for _ in pairs
         ]
 
@@ -278,6 +283,58 @@ class TestErrorIsolation:
         assert len(result.detections) > 0
         assert len(result.transforms) == 0
         assert result.summary_stats["failed"] > 0
+        mock_mgr.initialize_evaluator.assert_not_called()
+
+    @patch("lucid.pipeline.validate_markdown")
+    @patch("lucid.pipeline.ModelManager")
+    def test_identity_fallback_not_counted_as_transformed(
+        self,
+        mock_manager_cls: MagicMock,
+        mock_validate: MagicMock,
+        config: LUCIDConfig,
+        md_input: Path,
+        tmp_path: Path,
+    ) -> None:
+        from lucid.reconstructor import ValidationResult
+
+        mock_validate.return_value = ValidationResult(valid=True)
+
+        mock_mgr = mock_manager_cls.return_value
+        mock_detector = MagicMock()
+        mock_transformer = MagicMock()
+        mock_evaluator = MagicMock()
+
+        mock_mgr.initialize_detector.return_value = mock_detector
+        mock_mgr.initialize_transformer.return_value = mock_transformer
+        mock_mgr.initialize_evaluator.return_value = mock_evaluator
+        mock_mgr.detector = mock_detector
+        mock_mgr.transformer = mock_transformer
+        mock_mgr.evaluator = mock_evaluator
+
+        mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
+            TransformResult(
+                chunk_id=chunk.id,
+                original_text=chunk.text,
+                transformed_text=chunk.text,
+                iteration_count=2,
+                operator_used="identity_keep_original",
+                final_detection_score=0.85,
+                semantic_similarity=1.0,
+                fallback_mode="keep_original",
+            )
+            for chunk, _det in pairs
+        ]
+        mock_evaluator.evaluate_chunk.side_effect = (
+            lambda cid, _orig, _hum: _make_evaluation(cid)
+        )
+
+        pipeline = LUCIDPipeline(config)
+        result = pipeline.run(md_input, output_path=tmp_path / "identity.md")
+
+        assert result.summary_stats["transformed"] == 0
+        assert result.summary_stats["unchanged"] == len(result.transforms)
+        assert result.summary_stats["fallback_modes"] == {"keep_original": len(result.transforms)}
 
 
 class TestDefaultOutputPath:
