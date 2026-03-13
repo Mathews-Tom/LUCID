@@ -201,6 +201,8 @@ class TestLUCIDConfigDefaults:
         assert config.transform.search_iterations == 8
         assert config.transform.search_target_score == 0.25
         assert config.transform.max_concurrent == 2
+        assert config.transform.semantic_gate_threshold == 0.0
+        assert config.transform.fallback_policy == "mark_failed"
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

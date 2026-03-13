@@ -41,7 +41,7 @@ max_concurrent = 2
 search_iterations = 8
 search_target_score = 0.35
 transform_ambiguous = true
-semantic_gate_threshold = 0.55
+semantic_gate_threshold = 0.0
 fallback_policy = "mark_failed"
 
 [transform.temperature]

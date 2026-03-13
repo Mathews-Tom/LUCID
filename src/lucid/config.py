@@ -123,7 +123,7 @@ class TransformConfig:
     search_iterations: int = 8
     search_target_score: float = 0.25
     transform_ambiguous: bool = True
-    semantic_gate_threshold: float = 0.55
+    semantic_gate_threshold: float = 0.0
     fallback_policy: str = "mark_failed"
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
