@@ -175,7 +175,7 @@ class EvaluationPipeline:
             return False
         if self._config.nli_require_bidirectional:
             return forward == "entailment" and backward == "entailment"
-        return forward == "entailment"
+        return forward == "entailment" or backward == "entailment"
 
     def _nli_rejection_reason(self, forward: str, backward: str) -> str:
         """Build a human-readable NLI rejection reason."""
@@ -186,4 +186,7 @@ class EvaluationPipeline:
                 f"NLI bidirectional entailment required but got "
                 f"forward={forward}, backward={backward}"
             )
-        return f"NLI forward direction is {forward}, expected entailment"
+        return (
+            f"NLI relaxed mode requires entailment in at least one direction but got "
+            f"forward={forward}, backward={backward}"
+        )
