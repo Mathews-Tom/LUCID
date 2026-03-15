@@ -12,9 +12,8 @@ from typing import TYPE_CHECKING
 
 import psutil
 
-from lucid.config import LUCIDConfig
-
 if TYPE_CHECKING:
+    from lucid.config import LUCIDConfig
     from lucid.detector.base import LUCIDDetector
     from lucid.evaluator import LUCIDEvaluator
     from lucid.transform import LUCIDTransformer
@@ -152,6 +151,8 @@ class ModelManager:
         """Release all component references and collect garbage."""
         if self._detector is not None:
             self._detector.unload_binoculars()
+        if self._evaluator is not None:
+            self._evaluator.close()
         self._detector = None
         self._transformer = None
         self._evaluator = None

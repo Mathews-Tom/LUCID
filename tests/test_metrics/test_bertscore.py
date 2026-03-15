@@ -120,6 +120,15 @@ class TestBERTScoreChecker:
         assert result.recall == pytest.approx(-0.20)
         assert result.f1 == pytest.approx(-0.18)
 
+    def test_close_clears_cached_scorer(self) -> None:
+        """close() releases the cached BERTScore scorer."""
+        checker = BERTScoreChecker(model_type="m")
+        checker._scorer = MagicMock()
+
+        checker.close()
+
+        assert checker._scorer is None
+
     def test_result_is_frozen(self) -> None:
         """BERTScoreResult fields cannot be mutated."""
         result = BERTScoreResult(precision=0.9, recall=0.8, f1=0.85)

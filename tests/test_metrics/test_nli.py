@@ -169,6 +169,12 @@ class TestNLIChecker:
             assert result_pipe is mock_pipe
             assert checker._pipeline is mock_pipe
 
+    def test_close_clears_cached_pipeline(self) -> None:
+        """close() releases the cached NLI pipeline."""
+        self.checker.close()
+
+        assert self.checker._pipeline is None
+
     def test_result_is_frozen(self) -> None:
         """NLIResult instances are immutable."""
         result = NLIResult(

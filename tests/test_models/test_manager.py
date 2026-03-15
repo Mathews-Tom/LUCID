@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import logging
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from lucid.config import LUCIDConfig
 from lucid.models.manager import ModelManager
+
+if TYPE_CHECKING:
+    from lucid.config import LUCIDConfig
 
 
 @pytest.fixture
@@ -174,6 +177,19 @@ class TestShutdownCallsUnload:
         manager.initialize_detector()
         manager.shutdown()
         mock_detector_cls.return_value.unload_binoculars.assert_called_once()
+
+    @patch("lucid.evaluator.LUCIDEvaluator")
+    def test_shutdown_closes_evaluator(
+        self,
+        mock_evaluator_cls: MagicMock,
+        manager: ModelManager,
+    ) -> None:
+        """shutdown() closes evaluator-owned resources before clearing refs."""
+        manager.initialize_evaluator()
+
+        manager.shutdown()
+
+        mock_evaluator_cls.return_value.close.assert_called_once()
 
 
 class TestShutdown:
