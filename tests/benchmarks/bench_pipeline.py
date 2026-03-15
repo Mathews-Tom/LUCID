@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import time
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,6 +15,9 @@ from lucid.models.results import (
     TransformResult,
 )
 from lucid.pipeline import LUCIDPipeline, PipelineState
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.mark.benchmark
@@ -37,12 +40,27 @@ class TestPipelineLatency:
         mock_mgr.detector.detect.return_value = DetectionResult(
             chunk_id="c1", ensemble_score=0.8, classification="ai_generated",
         )
-        mock_mgr.transformer.transform.return_value = TransformResult(
-            chunk_id="c1", original_text="Test", transformed_text="Tested",
-            iteration_count=1, operator_used="standard", final_detection_score=0.2,
+        mock_mgr.transformer.transform_batch.side_effect = (
+            lambda pairs, on_chunk_done=None: [
+                TransformResult(
+                    chunk_id=chunk.id,
+                    original_text=chunk.text,
+                    transformed_text="Tested",
+                    iteration_count=1,
+                    operator_used="standard",
+                    final_detection_score=0.2,
+                    diagnostics={
+                        "placeholder_failures": 1,
+                        "semantic_gate_rejections": 2,
+                        "retries_used": 1,
+                    },
+                )
+                for chunk, _det in pairs
+            ]
         )
         mock_mgr.evaluator.evaluate_chunk.return_value = EvaluationResult(
             chunk_id="c1", passed=True, embedding_similarity=0.9,
+            diagnostics={"terminal_stage": "passed", "rejected_at": None},
         )
         mock_validate_md.return_value = MagicMock(valid=True)
 
@@ -61,6 +79,13 @@ class TestPipelineLatency:
         benchmark_collector.latency_ms = {
             "pipeline_full_doc": round(elapsed_ms, 1),
             "note": "CI mode with mocked models - orchestration overhead only",
+        }
+        benchmark_collector.failure_modes["pipeline_summary_shape"] = {
+            "operator_usage_present": "operator_usage" in result.summary_stats,
+            "search_diagnostics_present": "search_diagnostics" in result.summary_stats,
+            "evaluation_rejection_stages_present": (
+                "evaluation_rejection_stages" in result.summary_stats
+            ),
         }
 
     def test_pipeline_state_machine(self) -> None:

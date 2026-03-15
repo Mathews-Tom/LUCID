@@ -21,6 +21,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _nli_lock = threading.Lock()
+_nli_inference_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,11 +107,16 @@ class NLIChecker:
 
     def _classify(self, premise: str, hypothesis: str) -> dict[str, float]:
         """Run single-direction NLI classification."""
-        raw: list[dict[str, Any]] = self.pipeline(  # type: ignore[assignment]
-            {"text": premise, "text_pair": hypothesis},
-            top_k=None,
-        )
+        with _nli_inference_lock:
+            raw: list[dict[str, Any]] = self.pipeline(  # type: ignore[assignment]
+                {"text": premise, "text_pair": hypothesis},
+                top_k=None,
+            )
         return {item["label"]: float(item["score"]) for item in raw}
+
+    def close(self) -> None:
+        """Release cached pipeline references for cleaner shutdown."""
+        self._pipeline = None
 
     @staticmethod
     def _top_label(scores: dict[str, float]) -> str:

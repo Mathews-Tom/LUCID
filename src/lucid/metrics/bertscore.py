@@ -16,6 +16,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _bertscore_lock = threading.Lock()
+_bertscore_inference_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -63,7 +64,8 @@ class BERTScoreChecker:
             (rescaled with baseline).
         """
         scorer = self._load_scorer()
-        p, r, f1 = scorer.score(cands=[paraphrase], refs=[original])
+        with _bertscore_inference_lock:
+            p, r, f1 = scorer.score(cands=[paraphrase], refs=[original])
         result = BERTScoreResult(
             precision=p[0].item(),
             recall=r[0].item(),
@@ -76,6 +78,10 @@ class BERTScoreChecker:
             result.f1,
         )
         return result
+
+    def close(self) -> None:
+        """Release cached scorer references for cleaner shutdown."""
+        self._scorer = None
 
 
 @metric_registry.register("bertscore")

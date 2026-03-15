@@ -12,6 +12,7 @@ Early exit preserves all intermediate scores computed up to the rejection point.
 
 from __future__ import annotations
 
+import gc
 import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -26,6 +27,23 @@ if TYPE_CHECKING:
     from lucid.config import EvaluatorConfig
 
 logger = logging.getLogger(__name__)
+
+
+def _evaluation_diagnostics(
+    *,
+    stage: str,
+    nli_mode: str,
+    term_reason: str | None = None,
+    options: PipelineOptions | None = None,
+) -> dict[str, object]:
+    """Build a compact machine-readable trace of evaluation decisions."""
+    return {
+        "rejected_at": None if stage == "passed" else stage,
+        "terminal_stage": stage,
+        "nli_mode": nli_mode,
+        "run_bertscore": bool(options.run_bertscore) if options is not None else False,
+        "term_verification_reason": term_reason,
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +99,11 @@ class EvaluationPipeline:
         """
         if options is None:
             options = PipelineOptions()
+        nli_mode = (
+            "bidirectional"
+            if self._config.nli_require_bidirectional
+            else "relaxed_either_direction"
+        )
 
         # Stage 0: Term verification (cheapest, most critical)
         term_result = self._term_verifier.verify(original, paraphrase)
@@ -90,6 +113,12 @@ class EvaluationPipeline:
                 chunk_id=chunk_id,
                 passed=False,
                 rejection_reason=f"term verification failed: {term_result.reason}",
+                diagnostics=_evaluation_diagnostics(
+                    stage="term_verification",
+                    nli_mode=nli_mode,
+                    term_reason=term_result.reason,
+                    options=options,
+                ),
             )
 
         # Stage 1: Embedding similarity
@@ -111,6 +140,11 @@ class EvaluationPipeline:
                     f"embedding similarity {embedding_similarity:.4f} "
                     f"below threshold {self._config.embedding_threshold}"
                 ),
+                diagnostics=_evaluation_diagnostics(
+                    stage="embedding",
+                    nli_mode=nli_mode,
+                    options=options,
+                ),
             )
 
         # Stage 2: NLI entailment
@@ -129,6 +163,11 @@ class EvaluationPipeline:
                 nli_forward=nli_forward,
                 nli_backward=nli_backward,
                 rejection_reason=reason,
+                diagnostics=_evaluation_diagnostics(
+                    stage="nli",
+                    nli_mode=nli_mode,
+                    options=options,
+                ),
             )
 
         # Stage 3: BERTScore (optional)
@@ -156,6 +195,11 @@ class EvaluationPipeline:
                         f"BERTScore F1 {bertscore_f1:.4f} "
                         f"below threshold {self._config.bertscore_threshold}"
                     ),
+                    diagnostics=_evaluation_diagnostics(
+                        stage="bertscore",
+                        nli_mode=nli_mode,
+                        options=options,
+                    ),
                 )
 
         # All stages passed
@@ -167,7 +211,28 @@ class EvaluationPipeline:
             nli_forward=nli_forward,
             nli_backward=nli_backward,
             bertscore_f1=bertscore_f1,
+            diagnostics=_evaluation_diagnostics(
+                stage="passed",
+                nli_mode=nli_mode,
+                options=options,
+            ),
         )
+
+    def close(self) -> None:
+        """Release evaluator-side model references and accelerator caches."""
+        self._embedding.close()
+        self._nli.close()
+        self._bertscore.close()
+        gc.collect()
+        try:
+            import torch
+
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+                torch.mps.empty_cache()
+        except ImportError:
+            pass
 
     def _check_nli_pass(self, forward: str, backward: str) -> bool:
         """Determine whether NLI labels constitute a pass."""

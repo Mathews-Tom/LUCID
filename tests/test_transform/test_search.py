@@ -387,6 +387,72 @@ class TestAdversarialLoop:
         assert result.fallback_mode == "keep_original"
         assert result.final_detection_score == detection.ensemble_score
 
+    def test_adaptive_placeholder_fallback_keeps_original_for_dense_chunk(self) -> None:
+        """Dense placeholder chunks degrade to keep-original even under mark_failed."""
+        text = "See [Smith, 2024] for details."
+        chunk = _make_chunk(text)
+        detection = _make_detection(chunk.id)
+        config_with_cite = TransformConfig(
+            search_iterations=2,
+            search_target_score=0.25,
+            temperature=TemperatureProfileConfig(),
+            adaptive_keep_original_min_placeholders=1,
+            term_protection=TermProtectionConfig(
+                use_ner=False,
+                protect_citations=True,
+                protect_numbers=False,
+            ),
+        )
+
+        client = _make_mock_client(["Bad response 1.", "Bad response 2."])
+        detector = MagicMock()
+
+        term_protector = TermProtector(config_with_cite.term_protection)
+        prompt_builder = PromptBuilder(examples_dir=None)
+
+        result = asyncio.run(
+            transformation_search(
+                chunk, detection, client, detector, term_protector,
+                prompt_builder, config_with_cite, "phi3:3.8b", "fast",
+            )
+        )
+
+        assert result.transformed_text == chunk.text
+        assert result.fallback_mode == "keep_original"
+        assert result.diagnostics["final_status"] == "adaptive_keep_original"
+
+    def test_adaptive_placeholder_fallback_keeps_original_after_repeated_failures(self) -> None:
+        """Repeated placeholder failures trigger keep-original before hard failure."""
+        text = "See [Smith, 2024] for details."
+        chunk = _make_chunk(text)
+        detection = _make_detection(chunk.id)
+        config_with_cite = TransformConfig(
+            search_iterations=3,
+            search_target_score=0.25,
+            temperature=TemperatureProfileConfig(),
+            adaptive_keep_original_after_failures=2,
+            term_protection=TermProtectionConfig(
+                use_ner=False, protect_citations=True, protect_numbers=False
+            ),
+        )
+
+        client = _make_mock_client(["Bad response 1.", "Bad response 2.", "Bad response 3."])
+        detector = MagicMock()
+
+        term_protector = TermProtector(config_with_cite.term_protection)
+        prompt_builder = PromptBuilder(examples_dir=None)
+
+        result = asyncio.run(
+            transformation_search(
+                chunk, detection, client, detector, term_protector,
+                prompt_builder, config_with_cite, "phi3:3.8b", "fast",
+            )
+        )
+
+        assert result.transformed_text == chunk.text
+        assert result.fallback_mode == "keep_original"
+        assert result.diagnostics["placeholder_failures"] >= 2
+
     def test_all_iterations_and_unprotected_fallback_fail_raises_runtime_error(self) -> None:
         """RuntimeError raised when explicit unsafe fallback also fails."""
         text = "See [Smith, 2024] for details."
@@ -476,6 +542,9 @@ class TestSemanticGate:
         assert "gets good results" in result.transformed_text
         assert result.semantic_similarity is not None
         assert result.semantic_similarity >= 0.55
+        assert result.diagnostics["semantic_gate_rejections"] == 1
+        assert result.diagnostics["low_similarity_rejections"] == 0
+        assert result.diagnostics["iterations_attempted"] == 2
 
     def test_gate_allows_good_candidates(self) -> None:
         """Candidates above the threshold pass through normally."""
@@ -503,6 +572,7 @@ class TestSemanticGate:
 
         # Best should be the lower score (0.30)
         assert result.final_detection_score == 0.30
+        assert result.diagnostics["attempted_operators"] == ["STANDARD", "RESTRUCTURE"]
 
     def test_higher_similarity_beats_slightly_lower_detection_score(self) -> None:
         """Search favors candidates more likely to survive semantic evaluation."""
@@ -537,3 +607,103 @@ class TestSemanticGate:
 
         assert result.transformed_text == "Benchmarks show the model achieves good results."
         assert result.final_detection_score == 0.31
+
+    def test_prompt_echo_candidate_is_rejected_before_scoring(self) -> None:
+        """Prompt leakage should never become the best candidate."""
+        original = (
+            "This is the language model that was made from document d. "
+            "This method solves vocabulary mismatch with smoothing."
+        )
+        chunk = _make_chunk(original)
+        detection = _make_detection(chunk.id)
+        config = TransformConfig(
+            search_iterations=2,
+            search_target_score=0.10,
+            semantic_gate_threshold=0.0,
+            minimum_candidate_similarity=0.30,
+            reject_prompt_echo=True,
+            temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
+            term_protection=TermProtectionConfig(
+                use_ner=False,
+                protect_citations=False,
+                protect_numbers=False,
+            ),
+        )
+
+        client = _make_mock_client([
+            (
+                "The output for this example should be a rewritten paragraph based "
+                "on the input provided. Upon inspection of your specific INPUT "
+                "text, I am providing a natural rewrite."
+            ),
+            (
+                "This is the language model derived from document d. "
+                "The method addresses vocabulary mismatch with smoothing."
+            ),
+        ])
+        detector = _make_mock_detector([0.32])
+
+        term_protector = TermProtector(config.term_protection)
+        prompt_builder = PromptBuilder(examples_dir=None)
+
+        result = asyncio.run(
+            transformation_search(
+                chunk,
+                detection,
+                client,
+                detector,
+                term_protector,
+                prompt_builder,
+                config,
+                "phi3:3.8b",
+                "fast",
+            )
+        )
+
+        assert "derived from document d" in result.transformed_text
+        assert result.diagnostics["prompt_echo_rejections"] == 1
+        assert result.diagnostics["low_similarity_rejections"] == 0
+
+    def test_low_similarity_hard_floor_rejects_bad_candidate_without_gate(self) -> None:
+        """A hard floor prevents wildly off-target candidates when the main gate is off."""
+        original = "The model achieves good results on benchmarks."
+        chunk = _make_chunk(original)
+        detection = _make_detection(chunk.id)
+        config = TransformConfig(
+            search_iterations=2,
+            search_target_score=0.10,
+            semantic_gate_threshold=0.0,
+            minimum_candidate_similarity=0.30,
+            temperature=TemperatureProfileConfig(fast=0.7, balanced=0.6, quality=0.5),
+            term_protection=TermProtectionConfig(
+                use_ner=False,
+                protect_citations=False,
+                protect_numbers=False,
+            ),
+        )
+
+        client = _make_mock_client([
+            "Quantum computing reshapes modern cryptography.",
+            "The model gets good results on benchmarks.",
+        ])
+        detector = _make_mock_detector([0.34])
+
+        term_protector = TermProtector(config.term_protection)
+        prompt_builder = PromptBuilder(examples_dir=None)
+
+        result = asyncio.run(
+            transformation_search(
+                chunk,
+                detection,
+                client,
+                detector,
+                term_protector,
+                prompt_builder,
+                config,
+                "phi3:3.8b",
+                "fast",
+            )
+        )
+
+        assert "gets good results" in result.transformed_text
+        assert result.diagnostics["low_similarity_rejections"] == 1

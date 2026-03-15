@@ -81,6 +81,14 @@ class TestEmbeddingSimilarity:
         self.scorer.compute("c", "d")
         mock_cls.assert_called_once()
 
+    def test_close_clears_cached_model(self) -> None:
+        """close() releases the cached embedding model."""
+        self.scorer._model = MagicMock()
+
+        self.scorer.close()
+
+        assert self.scorer._model is None
+
     @patch("sentence_transformers.SentenceTransformer")
     def test_result_is_frozen(self, mock_cls: MagicMock) -> None:
         """EmbeddingResult is immutable."""

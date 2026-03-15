@@ -26,16 +26,28 @@ class Operator(Enum):
         return self.value
 
 
-def select_operator(iteration: int, placeholder_count: int = 0) -> Operator:
+def select_operator(
+    iteration: int,
+    *,
+    placeholder_count: int = 0,
+    placeholder_failures: int = 0,
+    narrow_after_failures: int = 2,
+    single_operator_after_failures: int = 4,
+) -> Operator:
     """Select an operator via round-robin over the iteration index.
 
     Becomes more conservative as placeholder pressure rises:
     - >3 placeholders: skip REORDER
     - >5 placeholders: use only STANDARD and RESTRUCTURE
+    - repeated placeholder failures: narrow to safer operators, then STANDARD only
     """
     members = list(Operator)
     if placeholder_count > 5:
         members = [Operator.STANDARD, Operator.RESTRUCTURE]
     elif placeholder_count > 3:
         members = [s for s in members if s != Operator.REORDER]
+    if placeholder_failures >= single_operator_after_failures:
+        members = [Operator.STANDARD]
+    elif placeholder_failures >= narrow_after_failures:
+        members = [op for op in members if op in (Operator.STANDARD, Operator.RESTRUCTURE)]
     return members[iteration % len(members)]

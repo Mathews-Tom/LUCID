@@ -67,6 +67,8 @@ class TestEvaluationPipeline:
         assert result.nli_backward == "entailment"
         assert result.bertscore_f1 is None  # not run by default
         assert result.rejection_reason is None
+        assert result.diagnostics["terminal_stage"] == "passed"
+        assert result.diagnostics["nli_mode"] == "bidirectional"
 
     @patch("lucid.evaluator.pipeline.BERTScoreChecker")
     @patch("lucid.evaluator.pipeline.NLIChecker")
@@ -94,6 +96,7 @@ class TestEvaluationPipeline:
         assert "term verification" in (result.rejection_reason or "")
         assert result.embedding_similarity is None
         assert result.nli_forward is None
+        assert result.diagnostics["rejected_at"] == "term_verification"
         mock_emb_cls.return_value.compute.assert_not_called()
         mock_nli_cls.return_value.check.assert_not_called()
 
@@ -124,6 +127,7 @@ class TestEvaluationPipeline:
         assert result.embedding_similarity == pytest.approx(0.55)
         assert "embedding similarity" in (result.rejection_reason or "")
         assert result.nli_forward is None
+        assert result.diagnostics["rejected_at"] == "embedding"
         mock_nli_cls.return_value.check.assert_not_called()
 
     @patch("lucid.evaluator.pipeline.BERTScoreChecker")

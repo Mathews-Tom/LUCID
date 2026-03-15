@@ -42,7 +42,16 @@ search_iterations = 8
 search_target_score = 0.35
 transform_ambiguous = true
 semantic_gate_threshold = 0.0
+minimum_candidate_similarity = 0.0
+reject_prompt_echo = true
 fallback_policy = "mark_failed"
+adaptive_placeholder_fallback = true
+adaptive_keep_original_min_placeholders = 5
+adaptive_keep_original_after_failures = 5
+operator_narrowing_after_failures = 2
+operator_single_mode_after_failures = 4
+skip_title_like_chunks = true
+skip_equation_like_chunks = true
 
 [transform.temperature]
 fast = 0.7

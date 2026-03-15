@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _embedding_lock = threading.Lock()
+_embedding_inference_lock = threading.Lock()
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,11 +60,16 @@ class EmbeddingSimilarity:
             EmbeddingResult with cosine similarity in [-1, 1].
         """
         model = self._load_model()
-        vectors: NDArray[np.float32] = model.encode([original, paraphrase])
+        with _embedding_inference_lock:
+            vectors: NDArray[np.float32] = model.encode([original, paraphrase])
         a, b = vectors[0], vectors[1]
         similarity = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
         logger.debug("Embedding similarity: %.4f", similarity)
         return EmbeddingResult(similarity=similarity)
+
+    def close(self) -> None:
+        """Release cached model references for cleaner shutdown."""
+        self._model = None
 
 
 @metric_registry.register("embedding_cosine")

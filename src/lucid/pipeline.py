@@ -16,6 +16,7 @@ from lucid.parser.chunk import ProseChunk
 from lucid.parser.merge import merge_prose_for_detection
 from lucid.progress import PipelineEvent
 from lucid.reconstructor import validate_latex, validate_markdown
+from lucid.transform.chunk_policy import skip_transform_reason
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -191,11 +192,31 @@ class LUCIDPipeline:
                     ambiguous_count,
                 )
         target_chunks = [
-            c
-            for c in prose_chunks
+            c for c in prose_chunks
             if detection_map.get(c.id) is not None
             and detection_map[c.id].classification in target_classifications
         ]
+        skipped_non_transformable: dict[str, int] = {}
+        filtered_target_chunks: list[ProseChunk] = []
+        for chunk in target_chunks:
+            reason = skip_transform_reason(
+                chunk,
+                skip_title_like=self._config.transform.skip_title_like_chunks,
+                skip_equation_like=self._config.transform.skip_equation_like_chunks,
+            )
+            if reason is None:
+                filtered_target_chunks.append(chunk)
+                continue
+            chunk.metadata["skip_transform_reason"] = reason
+            skipped_non_transformable[reason] = skipped_non_transformable.get(reason, 0) + 1
+
+        if skipped_non_transformable:
+            logger.info(
+                "Skipping %d non-transformable chunks: %s",
+                sum(skipped_non_transformable.values()),
+                skipped_non_transformable,
+            )
+        target_chunks = filtered_target_chunks
         total_targets = len(target_chunks)
 
         # TRANSFORMING + EVALUATING
@@ -358,7 +379,11 @@ class LUCIDPipeline:
         doc_result.output_path = str(output_path)
 
         # Summary stats
-        doc_result.summary_stats = self._compute_summary(doc_result, failed_ids)
+        doc_result.summary_stats = self._compute_summary(
+            doc_result,
+            failed_ids,
+            skipped_non_transformable=skipped_non_transformable,
+        )
 
         # Cleanup
         model_mgr.shutdown()
@@ -486,6 +511,7 @@ class LUCIDPipeline:
     def _compute_summary(
         doc_result: DocumentResult,
         failed_ids: dict[str, str],
+        skipped_non_transformable: dict[str, int] | None = None,
     ) -> dict[str, Any]:
         """Compute summary statistics from accumulated results."""
         prose_count = sum(
@@ -502,10 +528,71 @@ class LUCIDPipeline:
         eval_passed = sum(1 for e in doc_result.evaluations if e.passed)
         eval_failed = sum(1 for e in doc_result.evaluations if not e.passed)
         fallback_modes: dict[str, int] = {}
+        operator_usage: dict[str, int] = {}
+        evaluation_rejection_stages: dict[str, int] = {}
+        rejected_chunks: list[dict[str, Any]] = []
+        search_diagnostics = {
+            "chunks_with_placeholder_failures": 0,
+            "placeholder_failures": 0,
+            "semantic_gate_rejections": 0,
+            "low_similarity_rejections": 0,
+            "prompt_echo_rejections": 0,
+            "restore_failures": 0,
+            "retries_used": 0,
+        }
         for transform in doc_result.transforms:
+            operator_usage[transform.operator_used] = (
+                operator_usage.get(transform.operator_used, 0) + 1
+            )
             if transform.fallback_mode is not None:
                 fallback_modes[transform.fallback_mode] = (
                     fallback_modes.get(transform.fallback_mode, 0) + 1
+                )
+            diagnostics = transform.diagnostics
+            placeholder_failures = int(diagnostics.get("placeholder_failures", 0))
+            if placeholder_failures > 0:
+                search_diagnostics["chunks_with_placeholder_failures"] += 1
+                search_diagnostics["placeholder_failures"] += placeholder_failures
+            search_diagnostics["semantic_gate_rejections"] += int(
+                diagnostics.get("semantic_gate_rejections", 0)
+            )
+            search_diagnostics["low_similarity_rejections"] += int(
+                diagnostics.get("low_similarity_rejections", 0)
+            )
+            search_diagnostics["prompt_echo_rejections"] += int(
+                diagnostics.get("prompt_echo_rejections", 0)
+            )
+            search_diagnostics["restore_failures"] += int(
+                diagnostics.get("restore_failures", 0)
+            )
+            search_diagnostics["retries_used"] += int(diagnostics.get("retries_used", 0))
+
+        for evaluation in doc_result.evaluations:
+            stage = evaluation.diagnostics.get("rejected_at")
+            if stage:
+                evaluation_rejection_stages[str(stage)] = (
+                    evaluation_rejection_stages.get(str(stage), 0) + 1
+                )
+                transform = next(
+                    (
+                        item
+                        for item in doc_result.transforms
+                        if item.chunk_id == evaluation.chunk_id
+                    ),
+                    None,
+                )
+                rejected_chunks.append(
+                    {
+                        "chunk_id": evaluation.chunk_id,
+                        "rejected_at": stage,
+                        "rejection_reason": evaluation.rejection_reason,
+                        "embedding_similarity": evaluation.embedding_similarity,
+                        "nli_forward": evaluation.nli_forward,
+                        "nli_backward": evaluation.nli_backward,
+                        "bertscore_f1": evaluation.bertscore_f1,
+                        "operator_used": transform.operator_used if transform else None,
+                        "fallback_mode": transform.fallback_mode if transform else None,
+                    }
                 )
 
         # Aggregate failure reasons for summary display
@@ -533,4 +620,9 @@ class LUCIDPipeline:
             "failed": len(failed_ids),
             "failure_reasons": failure_reasons,
             "fallback_modes": fallback_modes,
+            "operator_usage": operator_usage,
+            "evaluation_rejection_stages": evaluation_rejection_stages,
+            "rejected_chunks": rejected_chunks,
+            "search_diagnostics": search_diagnostics,
+            "skipped_non_transformable": skipped_non_transformable or {},
         }

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,6 +10,9 @@ from click.testing import CliRunner
 
 from lucid.cli import main
 from lucid.models.results import DetectionResult, DocumentResult
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -171,6 +174,46 @@ class TestPipelineCommand:
         )
 
         assert result.exit_code == 0
+
+
+class TestTransformCommand:
+    """transform subcommand."""
+
+    @patch("lucid.pipeline.LUCIDPipeline")
+    def test_transform_with_report(
+        self,
+        mock_pipeline_cls: MagicMock,
+        runner: CliRunner,
+        md_file: Path,
+        tmp_path: Path,
+    ) -> None:
+        report_file = tmp_path / "transform-report.json"
+        output_file = tmp_path / "out.md"
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.run.return_value = DocumentResult(
+            input_path=str(md_file),
+            format="markdown",
+            output_path=str(output_file),
+            summary_stats={"rejected_chunks": []},
+        )
+
+        result = runner.invoke(
+            main,
+            [
+                "transform",
+                str(md_file),
+                "-o",
+                str(output_file),
+                "--report",
+                str(report_file),
+                "--report-format",
+                "json",
+            ],
+        )
+
+        assert result.exit_code == 0
+        assert "Report:" in result.output
+        assert report_file.exists()
 
 
 class TestConfigCommand:

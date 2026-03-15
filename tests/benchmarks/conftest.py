@@ -36,6 +36,8 @@ class BenchmarkCollector:
     metadata: dict[str, Any] = field(default_factory=dict)
     detection_accuracy: dict[str, Any] = field(default_factory=dict)
     evasion: dict[str, Any] = field(default_factory=dict)
+    transform_quality: dict[str, Any] = field(default_factory=dict)
+    failure_modes: dict[str, Any] = field(default_factory=dict)
     semantic_preservation: dict[str, Any] = field(default_factory=dict)
     latency_ms: dict[str, Any] = field(default_factory=dict)
 
@@ -45,6 +47,8 @@ class BenchmarkCollector:
             "metadata": self.metadata,
             "detection_accuracy": self.detection_accuracy,
             "evasion": self.evasion,
+            "transform_quality": self.transform_quality,
+            "failure_modes": self.failure_modes,
             "semantic_preservation": self.semantic_preservation,
             "latency_ms": self.latency_ms,
         }
@@ -98,6 +102,8 @@ def _write_benchmark_results(
     has_data = any([
         benchmark_collector.detection_accuracy,
         benchmark_collector.evasion,
+        benchmark_collector.transform_quality,
+        benchmark_collector.failure_modes,
         benchmark_collector.semantic_preservation,
         benchmark_collector.latency_ms,
     ])

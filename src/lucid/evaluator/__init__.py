@@ -81,3 +81,7 @@ class LUCIDEvaluator:
             paraphrase=paraphrase,
             options=self._options,
         )
+
+    def close(self) -> None:
+        """Release evaluator-owned model state."""
+        self._pipeline.close()

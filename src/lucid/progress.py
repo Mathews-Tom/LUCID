@@ -164,6 +164,14 @@ class ProgressReporter:
         else:
             table.add_row("Skipped (failed)", "0")
 
+        skipped_non_transformable = stats.get("skipped_non_transformable", {})
+        if skipped_non_transformable:
+            skip_parts = [
+                f"{reason} ({count})"
+                for reason, count in skipped_non_transformable.items()
+            ]
+            table.add_row("Skipped (policy)", "; ".join(skip_parts))
+
         ai_detected = stats.get("ai_detected", 0)
         if ai_detected > 0 and transformed == 0 and failed > 0:
             table.add_row(
@@ -182,6 +190,28 @@ class ProgressReporter:
             mode_parts = [f"{mode} ({count})" for mode, count in fallback_modes.items()]
             table.add_row("Fallback modes", "; ".join(mode_parts))
 
+        operator_usage = stats.get("operator_usage", {})
+        if operator_usage:
+            operator_parts = [f"{name} ({count})" for name, count in operator_usage.items()]
+            table.add_row("Operators", "; ".join(operator_parts))
+
+        search_diagnostics = stats.get("search_diagnostics", {})
+        if search_diagnostics:
+            summary = (
+                f"placeholder_failures={search_diagnostics.get('placeholder_failures', 0)}, "
+                f"chunks_with_placeholder_failures="
+                f"{search_diagnostics.get('chunks_with_placeholder_failures', 0)}, "
+                "semantic_gate_rejections="
+                f"{search_diagnostics.get('semantic_gate_rejections', 0)}, "
+                f"low_similarity_rejections="
+                f"{search_diagnostics.get('low_similarity_rejections', 0)}, "
+                f"prompt_echo_rejections="
+                f"{search_diagnostics.get('prompt_echo_rejections', 0)}, "
+                f"restore_failures={search_diagnostics.get('restore_failures', 0)}, "
+                f"retries_used={search_diagnostics.get('retries_used', 0)}"
+            )
+            table.add_row("Search diagnostics", summary)
+
         # Surface evaluation rejection reasons
         rejected = [e for e in document_result.evaluations if not e.passed]
         if rejected:
@@ -196,6 +226,11 @@ class ProgressReporter:
                 reasons[key] = reasons.get(key, 0) + 1
             summary_parts = [f"{reason} ({count})" for reason, count in reasons.items()]
             table.add_row("Rejection reasons", "; ".join(summary_parts))
+
+        rejection_stages = stats.get("evaluation_rejection_stages", {})
+        if rejection_stages:
+            stage_parts = [f"{stage} ({count})" for stage, count in rejection_stages.items()]
+            table.add_row("Rejection stages", "; ".join(stage_parts))
 
         if document_result.output_path:
             table.add_row("Output", document_result.output_path)
