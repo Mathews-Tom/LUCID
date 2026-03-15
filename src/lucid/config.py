@@ -124,7 +124,16 @@ class TransformConfig:
     search_target_score: float = 0.25
     transform_ambiguous: bool = True
     semantic_gate_threshold: float = 0.0
+    minimum_candidate_similarity: float = 0.0
+    reject_prompt_echo: bool = True
     fallback_policy: str = "mark_failed"
+    adaptive_placeholder_fallback: bool = True
+    adaptive_keep_original_min_placeholders: int = 5
+    adaptive_keep_original_after_failures: int = 5
+    operator_narrowing_after_failures: int = 2
+    operator_single_mode_after_failures: int = 4
+    skip_title_like_chunks: bool = True
+    skip_equation_like_chunks: bool = True
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
 

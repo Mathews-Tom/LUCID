@@ -119,6 +119,7 @@ class TestLoadConfig:
         """Balanced profile is the default."""
         config = load_config()
         assert config.general.profile == "balanced"
+        assert config.evaluator.embedding_threshold == 0.68
         assert config.evaluator.nli_require_bidirectional is False
 
     def test_fast_profile(self) -> None:
@@ -204,7 +205,16 @@ class TestLUCIDConfigDefaults:
         assert config.transform.search_target_score == 0.25
         assert config.transform.max_concurrent == 2
         assert config.transform.semantic_gate_threshold == 0.0
+        assert config.transform.minimum_candidate_similarity == 0.0
+        assert config.transform.reject_prompt_echo is True
         assert config.transform.fallback_policy == "mark_failed"
+        assert config.transform.adaptive_placeholder_fallback is True
+        assert config.transform.adaptive_keep_original_min_placeholders == 5
+        assert config.transform.adaptive_keep_original_after_failures == 5
+        assert config.transform.operator_narrowing_after_failures == 2
+        assert config.transform.operator_single_mode_after_failures == 4
+        assert config.transform.skip_title_like_chunks is True
+        assert config.transform.skip_equation_like_chunks is True
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

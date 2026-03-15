@@ -5,4 +5,5 @@ profile = "balanced"
 search_iterations = 5
 
 [evaluator]
+embedding_threshold = 0.68
 nli_require_bidirectional = false

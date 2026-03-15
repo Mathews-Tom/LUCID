@@ -57,6 +57,12 @@ def _make_transform(chunk_id: str, original: str) -> TransformResult:
         iteration_count=1,
         operator_used="lexical_diversity",
         final_detection_score=0.15,
+        diagnostics={
+            "placeholder_failures": 1,
+            "semantic_gate_rejections": 2,
+            "restore_failures": 0,
+            "retries_used": 1,
+        },
     )
 
 
@@ -66,12 +72,16 @@ def _make_evaluation(chunk_id: str, passed: bool = True) -> EvaluationResult:
             chunk_id=chunk_id,
             passed=True,
             embedding_similarity=0.92,
+            diagnostics={"terminal_stage": "passed", "rejected_at": None},
         )
     return EvaluationResult(
         chunk_id=chunk_id,
         passed=False,
         embedding_similarity=0.5,
         rejection_reason="Similarity too low",
+        nli_forward="not_entailment",
+        nli_backward="not_entailment",
+        diagnostics={"terminal_stage": "embedding", "rejected_at": "embedding"},
     )
 
 
@@ -171,6 +181,12 @@ class TestRunFullPipeline:
         assert len(result.evaluations) > 0
         assert result.summary_stats["total_chunks"] > 0
         assert result.summary_stats["transformed"] == len(result.transforms)
+        assert result.summary_stats["operator_usage"] == {
+            "lexical_diversity": len(result.transforms)
+        }
+        assert result.summary_stats["search_diagnostics"]["placeholder_failures"] == len(
+            result.transforms
+        )
         mock_mgr.shutdown.assert_called_once()
 
 
@@ -335,6 +351,173 @@ class TestErrorIsolation:
         assert result.summary_stats["transformed"] == 0
         assert result.summary_stats["unchanged"] == len(result.transforms)
         assert result.summary_stats["fallback_modes"] == {"keep_original": len(result.transforms)}
+
+    def test_summary_tracks_evaluation_rejection_stages(
+        self,
+        config: LUCIDConfig,
+    ) -> None:
+        from lucid.parser.chunk import ProseChunk
+
+        prose = ProseChunk(text="Original", start_pos=0, end_pos=8)
+        result = DocumentResult(
+            input_path="test.md",
+            format="markdown",
+            chunks=[prose],
+            detections=[_make_detection(prose.id)],
+            transforms=[_make_transform(prose.id, prose.text)],
+            evaluations=[_make_evaluation(prose.id, passed=False)],
+        )
+
+        summary = LUCIDPipeline._compute_summary(result, failed_ids={})
+
+        assert summary["evaluation_rejection_stages"] == {"embedding": 1}
+        assert summary["search_diagnostics"]["semantic_gate_rejections"] == 2
+        assert summary["rejected_chunks"][0]["chunk_id"] == prose.id
+        assert summary["rejected_chunks"][0]["operator_used"] == "lexical_diversity"
+
+    @patch("lucid.pipeline.validate_markdown")
+    @patch("lucid.pipeline.ModelManager")
+    def test_skips_title_like_chunks_from_transform(
+        self,
+        mock_manager_cls: MagicMock,
+        mock_validate: MagicMock,
+        config: LUCIDConfig,
+        tmp_path: Path,
+    ) -> None:
+        from lucid.reconstructor import ValidationResult
+
+        mock_validate.return_value = ValidationResult(valid=True)
+        md_input = tmp_path / "titles.md"
+        md_input.write_text(
+            "### 2.1.1 Foundational Retrieval-Augmented Generation\n\n"
+            "This paragraph explains the section in full sentences.\n",
+            encoding="utf-8",
+        )
+
+        mock_mgr = mock_manager_cls.return_value
+        mock_detector = MagicMock()
+        mock_transformer = MagicMock()
+        mock_evaluator = MagicMock()
+
+        mock_mgr.initialize_detector.return_value = mock_detector
+        mock_mgr.initialize_transformer.return_value = mock_transformer
+        mock_mgr.initialize_evaluator.return_value = mock_evaluator
+        mock_mgr.detector = mock_detector
+        mock_mgr.transformer = mock_transformer
+        mock_mgr.evaluator = mock_evaluator
+
+        mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
+            _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
+        ]
+        mock_evaluator.evaluate_chunk.side_effect = (
+            lambda cid, _orig, _hum: _make_evaluation(cid)
+        )
+
+        pipeline = LUCIDPipeline(config)
+        result = pipeline.run(md_input, output_path=tmp_path / "titles_out.md")
+
+        batch_pairs = mock_transformer.transform_batch.call_args.args[0]
+        assert len(batch_pairs) == 1
+        assert batch_pairs[0][0].text == "This paragraph explains the section in full sentences."
+        assert result.summary_stats["skipped_non_transformable"] == {"title_like": 1}
+
+    @patch("lucid.pipeline.ModelManager")
+    def test_skips_equation_like_chunks_from_transform(
+        self,
+        mock_manager_cls: MagicMock,
+        config: LUCIDConfig,
+        tmp_path: Path,
+    ) -> None:
+        txt_input = tmp_path / "equations.txt"
+        txt_input.write_text(
+            "P(q | M_d) = product over t in q of P(t | M_d)\n\n"
+            "This paragraph explains the model behavior in normal prose.",
+            encoding="utf-8",
+        )
+
+        mock_mgr = mock_manager_cls.return_value
+        mock_detector = MagicMock()
+        mock_transformer = MagicMock()
+        mock_evaluator = MagicMock()
+
+        mock_mgr.initialize_detector.return_value = mock_detector
+        mock_mgr.initialize_transformer.return_value = mock_transformer
+        mock_mgr.initialize_evaluator.return_value = mock_evaluator
+        mock_mgr.detector = mock_detector
+        mock_mgr.transformer = mock_transformer
+        mock_mgr.evaluator = mock_evaluator
+
+        mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
+            _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
+        ]
+        mock_evaluator.evaluate_chunk.side_effect = (
+            lambda cid, _orig, _hum: _make_evaluation(cid)
+        )
+
+        pipeline = LUCIDPipeline(config)
+        result = pipeline.run(txt_input, output_path=tmp_path / "equations_out.txt")
+
+        batch_pairs = mock_transformer.transform_batch.call_args.args[0]
+        assert len(batch_pairs) == 1
+        assert (
+            batch_pairs[0][0].text
+            == "This paragraph explains the model behavior in normal prose."
+        )
+        assert result.summary_stats["skipped_non_transformable"] == {"equation_like": 1}
+
+    @patch("lucid.pipeline.validate_markdown")
+    @patch("lucid.pipeline.ModelManager")
+    def test_policy_skips_structural_like_prose_and_evaluates_only_remaining_chunk(
+        self,
+        mock_manager_cls: MagicMock,
+        mock_validate: MagicMock,
+        config: LUCIDConfig,
+        tmp_path: Path,
+    ) -> None:
+        from lucid.reconstructor import ValidationResult
+
+        mock_validate.return_value = ValidationResult(valid=True)
+        md_input = tmp_path / "mixed.md"
+        md_input.write_text(
+            "### Foundational Retrieval-Augmented Generation\n\n"
+            "P(q | M_d) = product over t in q of P(t | M_d)\n\n"
+            "This paragraph explains the section in ordinary prose.\n",
+            encoding="utf-8",
+        )
+
+        mock_mgr = mock_manager_cls.return_value
+        mock_detector = MagicMock()
+        mock_transformer = MagicMock()
+        mock_evaluator = MagicMock()
+
+        mock_mgr.initialize_detector.return_value = mock_detector
+        mock_mgr.initialize_transformer.return_value = mock_transformer
+        mock_mgr.initialize_evaluator.return_value = mock_evaluator
+        mock_mgr.detector = mock_detector
+        mock_mgr.transformer = mock_transformer
+        mock_mgr.evaluator = mock_evaluator
+
+        mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
+            _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
+        ]
+        mock_evaluator.evaluate_chunk.side_effect = (
+            lambda cid, _orig, _hum: _make_evaluation(cid)
+        )
+
+        pipeline = LUCIDPipeline(config)
+        result = pipeline.run(md_input, output_path=tmp_path / "mixed_out.md")
+
+        batch_pairs = mock_transformer.transform_batch.call_args.args[0]
+        assert len(batch_pairs) == 1
+        assert batch_pairs[0][0].text == "This paragraph explains the section in ordinary prose."
+        assert len(result.evaluations) == 1
+        assert result.summary_stats["skipped_non_transformable"] == {
+            "title_like": 1,
+            "equation_like": 1,
+        }
 
 
 class TestDefaultOutputPath:
