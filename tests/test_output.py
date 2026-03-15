@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from pathlib import Path
+from typing import TYPE_CHECKING
 
 import pytest
 
@@ -16,6 +16,9 @@ from lucid.models.results import (
 )
 from lucid.output import OutputFormatter
 from lucid.parser.chunk import ProseChunk
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 
 @pytest.fixture
@@ -57,6 +60,11 @@ def sample_result() -> DocumentResult:
                 iteration_count=3,
                 operator_used="lexical_diversity",
                 final_detection_score=0.15,
+                diagnostics={
+                    "placeholder_failures": 1,
+                    "semantic_gate_rejections": 2,
+                    "retries_used": 1,
+                },
             )
         ],
         evaluations=[
@@ -64,6 +72,7 @@ def sample_result() -> DocumentResult:
                 chunk_id="abc12345deadbeef",
                 passed=True,
                 embedding_similarity=0.92,
+                diagnostics={"terminal_stage": "passed", "rejected_at": None},
             )
         ],
         output_path="test_transformed.md",
@@ -72,9 +81,26 @@ def sample_result() -> DocumentResult:
             "prose_chunks": 1,
             "ai_detected": 1,
             "transformed": 1,
+            "unchanged": 0,
             "eval_passed": 1,
             "eval_failed": 0,
             "failed": 0,
+            "operator_usage": {"lexical_diversity": 1},
+            "search_diagnostics": {
+                "placeholder_failures": 1,
+                "chunks_with_placeholder_failures": 1,
+                "semantic_gate_rejections": 2,
+                "restore_failures": 0,
+                "retries_used": 1,
+            },
+            "rejected_chunks": [
+                {
+                    "chunk_id": "abc12345deadbeef",
+                    "rejected_at": "embedding",
+                    "rejection_reason": "embedding similarity 0.6700 below threshold 0.68",
+                    "operator_used": "lexical_diversity",
+                }
+            ],
         },
     )
     return doc
@@ -115,6 +141,7 @@ class TestFormatJSON:
         assert chunk["detection"]["classification"] == "ai_generated"
         assert "paraphrase" in chunk
         assert "evaluation" in chunk
+        assert chunk["paraphrase"]["diagnostics"]["placeholder_failures"] == 1
 
 
 class TestFormatText:
@@ -153,6 +180,26 @@ class TestFormatText:
 
         assert "Evaluation Results" in output
         assert "PASS" in output
+
+    def test_contains_transform_diagnostics(
+        self,
+        formatter: OutputFormatter,
+        sample_result: DocumentResult,
+    ) -> None:
+        output = formatter.format_text(sample_result)
+
+        assert "Transform Diagnostics" in output
+        assert "placeholder_failures=1" in output
+
+    def test_contains_rejected_chunks_section(
+        self,
+        formatter: OutputFormatter,
+        sample_result: DocumentResult,
+    ) -> None:
+        output = formatter.format_text(sample_result)
+
+        assert "Rejected Chunks" in output
+        assert "embedding similarity 0.6700 below threshold 0.68" in output
 
 
 class TestFormatAnnotated:

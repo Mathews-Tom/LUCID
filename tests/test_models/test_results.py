@@ -121,11 +121,13 @@ class TestTransformResult:
             iteration_count=3,
             operator_used="voice_shift",
             final_detection_score=0.15,
+            diagnostics={"placeholder_failures": 1},
         )
         restored = TransformResult.from_dict(original.to_dict())
         assert restored.chunk_id == original.chunk_id
         assert restored.transformed_text == original.transformed_text
         assert restored.operator_used == original.operator_used
+        assert restored.diagnostics == {"placeholder_failures": 1}
 
 
 class TestEvaluationResult:
@@ -175,11 +177,13 @@ class TestEvaluationResult:
             nli_forward="entailment",
             nli_backward="entailment",
             bertscore_f1=0.91,
+            diagnostics={"terminal_stage": "passed"},
         )
         restored = EvaluationResult.from_dict(original.to_dict())
         assert restored.passed == original.passed
         assert restored.embedding_similarity == original.embedding_similarity
         assert restored.nli_forward == original.nli_forward
+        assert restored.diagnostics == {"terminal_stage": "passed"}
 
 
 class TestDocumentResult:

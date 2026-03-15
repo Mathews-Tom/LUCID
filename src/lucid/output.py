@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from lucid import __version__
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from lucid.config import LUCIDConfig
     from lucid.models.results import DocumentResult
 
@@ -85,10 +86,33 @@ class OutputFormatter:
         lines.append(f"  Prose chunks:     {stats.get('prose_chunks', 0)}")
         lines.append(f"  AI-detected:      {stats.get('ai_detected', 0)}")
         lines.append(f"  Transformed:      {stats.get('transformed', 0)}")
+        lines.append(f"  Unchanged:        {stats.get('unchanged', 0)}")
         lines.append(f"  Eval passed:      {stats.get('eval_passed', 0)}")
         lines.append(f"  Eval failed:      {stats.get('eval_failed', 0)}")
         lines.append(f"  Failed:           {stats.get('failed', 0)}")
+        skipped_non_transformable = stats.get("skipped_non_transformable", {})
+        if skipped_non_transformable:
+            lines.append(f"  Skipped policy:   {skipped_non_transformable}")
         lines.append("")
+
+        rejection_stages = stats.get("evaluation_rejection_stages", {})
+        if rejection_stages:
+            lines.append("Evaluation Rejection Stages")
+            lines.append("-" * 30)
+            for stage, count in rejection_stages.items():
+                lines.append(f"  {stage}: {count}")
+            lines.append("")
+
+        rejected_chunks = stats.get("rejected_chunks", [])
+        if rejected_chunks:
+            lines.append("Rejected Chunks")
+            lines.append("-" * 30)
+            for item in rejected_chunks:
+                lines.append(
+                    f"  [{item['chunk_id'][:8]}] stage={item.get('rejected_at')} "
+                    f"op={item.get('operator_used')} reason={item.get('rejection_reason')}"
+                )
+            lines.append("")
 
         if result.detections:
             lines.append("Detection Results")
@@ -107,7 +131,22 @@ class OutputFormatter:
             for ev in result.evaluations:
                 status = "PASS" if ev.passed else "FAIL"
                 reason = f" ({ev.rejection_reason})" if ev.rejection_reason else ""
-                lines.append(f"  [{ev.chunk_id[:8]}] {status}{reason}")
+                stage = ev.diagnostics.get("rejected_at")
+                stage_text = f" stage={stage}" if stage else ""
+                lines.append(f"  [{ev.chunk_id[:8]}] {status}{stage_text}{reason}")
+            lines.append("")
+
+        if result.transforms:
+            lines.append("Transform Diagnostics")
+            lines.append("-" * 30)
+            for tr in result.transforms:
+                details = tr.diagnostics
+                lines.append(
+                    f"  [{tr.chunk_id[:8]}] op={tr.operator_used} "
+                    f"retries={details.get('retries_used', 0)} "
+                    f"placeholder_failures={details.get('placeholder_failures', 0)} "
+                    f"semantic_gate_rejections={details.get('semantic_gate_rejections', 0)}"
+                )
             lines.append("")
 
         return "\n".join(lines)

@@ -158,6 +158,13 @@ def detect(
 @main.command(name="transform")
 @click.argument("input_path", type=click.Path(exists=True, path_type=Path))
 @click.option("-o", "--output", "output_path", type=click.Path(path_type=Path), default=None)
+@click.option("--report", type=click.Path(path_type=Path), default=None, help="Write report file.")
+@click.option(
+    "--report-format",
+    type=click.Choice(["json", "text", "annotated"]),
+    default="json",
+    help="Report format when --report is set.",
+)
 @click.option("--model", default=None, help="Override Ollama model tag.")
 @click.option("--search/--no-search", default=True, help="Enable search loop.")
 @click.option(
@@ -171,11 +178,14 @@ def transform_cmd(
     ctx: click.Context,
     input_path: Path,
     output_path: Path | None,
+    report: Path | None,
+    report_format: str,
     model: str | None,
     search: bool,
     skip_eval: bool,
 ) -> None:
     """Transform AI-generated content in a document."""
+    from lucid.output import OutputFormatter
     from lucid.pipeline import LUCIDPipeline
     from lucid.progress import ProgressReporter
 
@@ -196,12 +206,20 @@ def transform_cmd(
 
     files = _resolve_inputs(input_path)
     pipeline = LUCIDPipeline(config, skip_eval=skip_eval)
+    formatter = OutputFormatter()
 
     for fpath in files:
         prose_count = 0
         reporter.start(total_chunks=prose_count)
         result = pipeline.run(fpath, output_path=output_path, progress_callback=reporter.callback)
         reporter.finish(result)
+
+        if report is not None:
+            original = fpath.read_text(encoding="utf-8") if report_format == "annotated" else None
+            formatter.write(
+                result, report, report_format, config=config, original_content=original
+            )
+            click.echo(f"Report: {report}")
 
         if result.output_path:
             click.echo(f"Output: {result.output_path}")
@@ -423,10 +441,8 @@ def bench_report(ctx: click.Context, results_dir: Path, output_format: str) -> N
     """Generate a report from benchmark results."""
     import json as json_mod
 
-    from lucid.bench.aggregation import AggregatedMetrics
     from lucid.bench.experiment import ExperimentResult
     from lucid.bench.reporting import ReportWriter
-    from lucid.bench.slices import SliceKey
     from lucid.core.types import DetectionRecord
 
     detections_path = results_dir / "detections.jsonl"
@@ -500,7 +516,6 @@ def explain_cmd(ctx: click.Context, input_path: Path) -> None:
     import json as json_mod
 
     from lucid.detector.explain import DetectionExplainer
-    from lucid.output import OutputFormatter
     from lucid.pipeline import LUCIDPipeline
     from lucid.progress import ProgressReporter
 

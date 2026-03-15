@@ -100,6 +100,7 @@ class TransformResult:
     final_detection_score: float
     semantic_similarity: float | None = None
     fallback_mode: str | None = None
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         _validate_score(self.final_detection_score, "final_detection_score")
@@ -120,6 +121,8 @@ class TransformResult:
             d["semantic_similarity"] = self.semantic_similarity
         if self.fallback_mode is not None:
             d["fallback_mode"] = self.fallback_mode
+        if self.diagnostics:
+            d["diagnostics"] = self.diagnostics
         return d
 
     @classmethod
@@ -134,6 +137,7 @@ class TransformResult:
             final_detection_score=data["final_detection_score"],
             semantic_similarity=data.get("semantic_similarity"),
             fallback_mode=data.get("fallback_mode"),
+            diagnostics=data.get("diagnostics", {}),
         )
 
 
@@ -158,6 +162,7 @@ class EvaluationResult:
     nli_backward: str | None = None
     bertscore_f1: float | None = None
     rejection_reason: str | None = None
+    diagnostics: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.passed and not self.rejection_reason:
@@ -177,6 +182,7 @@ class EvaluationResult:
             "nli_backward": self.nli_backward,
             "bertscore_f1": self.bertscore_f1,
             "rejection_reason": self.rejection_reason,
+            "diagnostics": self.diagnostics,
         }
 
     @classmethod
@@ -190,6 +196,7 @@ class EvaluationResult:
             nli_backward=data.get("nli_backward"),
             bertscore_f1=data.get("bertscore_f1"),
             rejection_reason=data.get("rejection_reason"),
+            diagnostics=data.get("diagnostics", {}),
         )
 
 
