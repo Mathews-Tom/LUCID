@@ -84,7 +84,12 @@ def is_equation_like_chunk(chunk: ProseChunk) -> bool:
 
 
 def is_math_heavy_chunk(chunk: ProseChunk) -> bool:
-    """Return True when a prose chunk is dominated by math placeholders."""
+    """Return True when a prose chunk is dominated by math placeholders.
+
+    Uses a ratio check: the total character footprint of math placeholders
+    must exceed 40% of the chunk text for it to be considered math-heavy.
+    Pure math lines and short "where [MATH]..." explanations are always caught.
+    """
     text = chunk.text.strip()
     if not text:
         return False
@@ -97,9 +102,14 @@ def is_math_heavy_chunk(chunk: ProseChunk) -> bool:
 
     if _PURE_MATH_LINE_RE.fullmatch(text):
         return True
-    if math_placeholder_count >= 2 and len(text) <= 340:
+    # Short "where [MATH_001] denotes..." explanation lines
+    if len(text) <= 120 and bool(_MATH_EXPLANATION_RE.match(text)):
         return True
-    return len(text) <= 220 and bool(_MATH_EXPLANATION_RE.match(text))
+    # Ratio check: math placeholders occupy > 40% of the text
+    placeholder_chars = sum(len(ph) for ph in _MATH_PLACEHOLDER_RE.findall(text))
+    if len(text) > 0 and placeholder_chars / len(text) > 0.4:
+        return True
+    return False
 
 
 def is_too_short_to_transform(chunk: ProseChunk, min_length: int) -> bool:

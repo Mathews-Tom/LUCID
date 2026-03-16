@@ -173,6 +173,17 @@ PROSE_ARG_MACROS: frozenset[str] = frozenset(
         "author",
         "date",
         "caption",
+        "footnote",
+        "footnotetext",
+        "marginpar",
+    }
+)
+
+# Inline formatting macros that should NOT break prose runs.
+# Their source span (including arguments) stays in the current prose run,
+# preserving sentence-level coherence through \textbf{...}, \emph{...}, etc.
+INLINE_FORMATTING_MACROS: frozenset[str] = frozenset(
+    {
         "textbf",
         "textit",
         "emph",
@@ -183,9 +194,6 @@ PROSE_ARG_MACROS: frozenset[str] = frozenset(
         "underline",
         "mbox",
         "text",
-        "footnote",
-        "footnotetext",
-        "marginpar",
     }
 )
 
@@ -375,6 +383,11 @@ class LatexDocumentAdapter:
                     chunk = self._node_to_structural(node, source)
                     if chunk is not None:
                         result.append([chunk])
+
+                elif macro_check in INLINE_FORMATTING_MACROS:
+                    # Inline formatting — include in current prose run
+                    # so \textbf{word} doesn't fragment surrounding text
+                    current_run.append(node)
 
                 elif macro_check in PROSE_ARG_MACROS:
                     flush_run()

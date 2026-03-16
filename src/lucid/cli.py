@@ -155,8 +155,38 @@ def detect(
         reporter.finish(result)
 
 
+_FORMAT_EXTENSIONS: dict[str, str] = {
+    "tex": ".tex",
+    "latex": ".tex",
+    "md": ".md",
+    "markdown": ".md",
+    "txt": ".txt",
+    "text": ".txt",
+}
+
+
 @main.command(name="transform")
-@click.argument("input_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("input_path", type=click.Path(exists=True, path_type=Path), required=False)
+@click.option(
+    "-p", "--paragraph",
+    type=str,
+    default=None,
+    help="Transform inline text (stdout). For LaTeX with $ and ', prefer --stdin.",
+)
+@click.option(
+    "--stdin",
+    "use_stdin",
+    is_flag=True,
+    default=False,
+    help="Read text from stdin (safe for LaTeX with $, ', and \\).",
+)
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["tex", "md", "txt"]),
+    default=None,
+    help="Document format for --paragraph/--stdin input.",
+)
 @click.option("-o", "--output", "output_path", type=click.Path(path_type=Path), default=None)
 @click.option("--report", type=click.Path(path_type=Path), default=None, help="Write report file.")
 @click.option(
@@ -176,7 +206,10 @@ def detect(
 @click.pass_context
 def transform_cmd(
     ctx: click.Context,
-    input_path: Path,
+    input_path: Path | None,
+    paragraph: str | None,
+    use_stdin: bool,
+    fmt: str | None,
     output_path: Path | None,
     report: Path | None,
     report_format: str,
@@ -184,7 +217,38 @@ def transform_cmd(
     search: bool,
     skip_eval: bool,
 ) -> None:
-    """Transform AI-generated content in a document."""
+    """Transform AI-generated content in a document.
+
+    Provide INPUT_PATH to transform a file, or use --paragraph/-p / --stdin to
+    transform inline text and print the result to stdout.
+
+    \b
+    For LaTeX content (contains $, ', and \\), use --stdin with a heredoc:
+        cat <<'EOF' | uv run lucid transform --stdin --format tex
+        where $N$ is the count and $df_t$ is Jones's formula.
+        EOF
+
+    \b
+    Or pipe a file directly:
+        cat paragraph.tex | uv run lucid transform --stdin --format tex
+
+    \b
+    For simple text without $ or ':
+        uv run lucid transform -p "some plain text" --format txt
+    """
+    if use_stdin:
+        if paragraph is not None or input_path is not None:
+            raise click.UsageError("--stdin cannot be combined with INPUT_PATH or --paragraph.")
+        paragraph = click.get_text_stream("stdin").read()
+        if not paragraph.strip():
+            raise click.UsageError("No input received on stdin.")
+
+    sources = sum([input_path is not None, paragraph is not None])
+    if sources == 0:
+        raise click.UsageError("Provide INPUT_PATH, --paragraph/-p, or --stdin.")
+    if sources > 1:
+        raise click.UsageError("Provide INPUT_PATH or --paragraph/-p, not both.")
+
     from lucid.output import OutputFormatter
     from lucid.pipeline import LUCIDPipeline
     from lucid.progress import ProgressReporter
@@ -201,10 +265,14 @@ def transform_cmd(
     if overrides:
         config = load_config(profile=config.general.profile, cli_overrides=overrides)
 
+    if paragraph is not None:
+        _transform_paragraph(ctx, config, paragraph, fmt or "txt", model, skip_eval)
+        return
+
     console = Console(stderr=True, quiet=obj["quiet"])
     reporter = ProgressReporter(console, verbose=obj["verbose"], quiet=obj["quiet"])
 
-    files = _resolve_inputs(input_path)
+    files = _resolve_inputs(input_path)  # type: ignore[arg-type]
     pipeline = LUCIDPipeline(config, skip_eval=skip_eval)
     formatter = OutputFormatter()
 
@@ -223,6 +291,46 @@ def transform_cmd(
 
         if result.output_path:
             click.echo(f"Output: {result.output_path}")
+
+
+def _transform_paragraph(
+    ctx: click.Context,
+    config: LUCIDConfig,
+    paragraph: str,
+    fmt: str,
+    model: str | None,
+    skip_eval: bool,
+) -> None:
+    """Transform a single paragraph and print to stdout."""
+    import tempfile
+
+    from lucid.pipeline import LUCIDPipeline
+    from lucid.progress import ProgressReporter
+
+    obj = ctx.obj
+    ext = _FORMAT_EXTENSIONS.get(fmt, ".txt")
+    console = Console(stderr=True, quiet=obj["quiet"])
+    reporter = ProgressReporter(console, verbose=obj["verbose"], quiet=obj["quiet"])
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        tmp = Path(tmpdir)
+        input_file = tmp / f"paragraph{ext}"
+        output_file = tmp / f"paragraph_transformed{ext}"
+        input_file.write_text(paragraph, encoding="utf-8")
+
+        pipeline = LUCIDPipeline(config, skip_eval=skip_eval)
+        reporter.start(total_chunks=0)
+        result = pipeline.run(
+            input_file,
+            output_path=output_file,
+            progress_callback=reporter.callback,
+        )
+        reporter.finish(result)
+
+        if output_file.exists():
+            click.echo(output_file.read_text(encoding="utf-8"))
+        else:
+            click.echo(paragraph)
 
 
 @main.command(name="pipeline")

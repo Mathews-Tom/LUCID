@@ -80,14 +80,30 @@ def test_single_math_placeholder_line_is_math_heavy() -> None:
     assert is_math_heavy_chunk(chunk)
 
 
-def test_multiple_math_placeholders_in_short_line_are_math_heavy() -> None:
-    text = "where [MATH_002] is the total number of documents and [MATH_003] counts the term."
+def test_multiple_math_placeholders_dominating_text_are_math_heavy() -> None:
+    text = "[MATH_002] and [MATH_003] define the sets."
+    chunk = _chunk(text)
+    chunk.math_placeholders = {
+        "[MATH_002]": "$D_R$",
+        "[MATH_003]": "$D_{NR}$",
+    }
+    # Placeholder chars = 20 out of 42 total = 47% > 40% threshold
+    assert is_math_heavy_chunk(chunk)
+
+
+def test_prose_with_scattered_math_variables_is_not_math_heavy() -> None:
+    text = (
+        "where [MATH_002] is the total number of documents and [MATH_003] is "
+        "the number of documents that include the word [MATH_004]."
+    )
     chunk = _chunk(text)
     chunk.math_placeholders = {
         "[MATH_002]": "$N$",
         "[MATH_003]": "$df_t$",
+        "[MATH_004]": "$t$",
     }
-    assert is_math_heavy_chunk(chunk)
+    # Placeholder chars = 30 out of ~130 total = ~23% < 40% threshold
+    assert not is_math_heavy_chunk(chunk)
 
 
 def test_plain_sentence_with_no_math_is_not_math_heavy() -> None:
@@ -197,12 +213,10 @@ def test_skip_transform_reason_returns_equation_like() -> None:
 
 
 def test_skip_transform_reason_returns_math_heavy() -> None:
-    chunk = _chunk(
-        "[MATH_001] and [MATH_002] are the relevant and non-relevant document sets."
-    )
+    # Pure math line — always caught regardless of ratio
+    chunk = _chunk("[MATH_001], [MATH_002], [MATH_003], [MATH_004], [MATH_005].")
     chunk.math_placeholders = {
-        "[MATH_001]": "$D_R$",
-        "[MATH_002]": "$D_{NR}$",
+        f"[MATH_00{i}]": f"$x_{i}$" for i in range(1, 6)
     }
     reason = skip_transform_reason(
         chunk,

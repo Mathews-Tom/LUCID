@@ -301,6 +301,35 @@ class TestUnknownEnvironment:
         assert any("unknownenv" in c.text for c in structural)
 
 
+class TestInlineFormatting:
+    """Tests for inline formatting macros staying in prose runs."""
+
+    def test_textbf_does_not_fragment_prose(self, adapter: LatexDocumentAdapter) -> None:
+        r"""\\textbf{} inside a sentence stays in the same prose chunk."""
+        content = r"Created by \textbf{Karen Sparck Jones} and \textbf{Stephen Robertson} in the 1970s."
+        chunks = adapter.parse(content)
+        prose = [c for c in chunks if isinstance(c, ProseChunk)]
+        # Should be ONE prose chunk, not fragmented into 5+
+        assert len(prose) == 1
+        assert "Karen Sparck Jones" in prose[0].text
+        assert "Stephen Robertson" in prose[0].text
+
+    def test_emph_stays_inline(self, adapter: LatexDocumentAdapter) -> None:
+        r"""\\emph{} stays in the surrounding prose run."""
+        content = r"The \emph{key insight} is that frequency matters."
+        chunks = adapter.parse(content)
+        prose = [c for c in chunks if isinstance(c, ProseChunk)]
+        assert len(prose) == 1
+        assert "key insight" in prose[0].text
+
+    def test_textbf_round_trip(self, adapter: LatexDocumentAdapter) -> None:
+        r"""Round-trip preserves \\textbf{} content."""
+        content = r"Results by \textbf{Smith} confirm this."
+        chunks = adapter.parse(content)
+        result = adapter.reconstruct(content, chunks)
+        assert result == content
+
+
 class TestEdgeCases:
     """Tests for edge cases and defensive guards."""
 
