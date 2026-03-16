@@ -57,8 +57,21 @@ uv run lucid models --download
 uv run lucid detect paper.tex
 uv run lucid detect paper.tex --output-format json
 
-# Transform AI-detected content
+# Transform AI-detected content (file mode)
 uv run lucid transform paper.tex -o paper_transformed.tex
+
+# Transform a single paragraph (inline mode — prints to stdout)
+uv run lucid transform -p "This text will be rewritten." --format txt
+
+# Transform LaTeX content with $math$ and apostrophes (stdin mode)
+cat <<'EOF' | uv run lucid transform --stdin --format tex
+where $N$ is the total number of documents and $df_t$ is the number
+of documents that include the word $t$. Jones's 1972 formula remains
+foundational: $\mathrm{IDF}(t) = \log \frac{N}{df_t}$.
+EOF
+
+# Pipe a file through stdin mode
+cat paragraph.tex | uv run lucid transform --stdin --format tex
 
 # Run full pipeline (detect → transform → evaluate → reconstruct)
 uv run lucid pipeline paper.tex -o paper_output.tex
@@ -115,13 +128,37 @@ lucid detect <INPUT> [OPTIONS]
 
 ### transform
 
+Three input modes: file, inline paragraph, and stdin.
+
 ```bash
+# File mode (default)
 lucid transform <INPUT> [OPTIONS]
-  -o, --output PATH             Output file path
-  --model TEXT                   Override Ollama model tag
-  --search / --no-search         Enable beam search loop (default: on)
-  --skip-eval                    Skip semantic evaluation
+
+# Inline paragraph mode — prints transformed text to stdout
+lucid transform -p "text to transform" --format txt
+
+# Stdin mode — safe for LaTeX with $, ', and \
+cat <<'EOF' | lucid transform --stdin --format tex
+LaTeX content with $math$ and apostrophe's here.
+EOF
 ```
+
+```
+Options:
+  -p, --paragraph TEXT          Transform inline text (stdout)
+  --stdin                       Read text from stdin
+  --format [tex|md|txt]         Document format for -p/--stdin input
+  -o, --output PATH             Output file path (file mode)
+  --report PATH                 Write report file
+  --report-format [json|text|annotated]  Report format (default: json)
+  --model TEXT                  Override Ollama model tag
+  --search / --no-search        Enable search loop (default: on)
+  --skip-eval                   Skip semantic evaluation
+```
+
+**Shell quoting for LaTeX:** Content with `$` (math) gets interpolated by bash
+in double quotes. Content with `'` (apostrophes) breaks single quotes. Use
+`--stdin` with a heredoc (`cat <<'EOF'`) to handle both safely.
 
 ### pipeline
 
@@ -177,9 +214,9 @@ Configuration files: `config/default.toml`, `config/profiles/`.
 
 | Profile | Default Model | Size | RAM Required | License |
 |---------|--------------|------|-------------|---------|
-| fast | phi3:3.8b | 2.4GB | 8GB | MIT |
-| balanced | qwen2.5:7b | 4.5GB | 12GB | Apache 2.0 |
-| quality | llama3.2:8b | 4.9GB | 16GB | Meta Community |
+| fast | phi4:latest | 2.4GB | 8GB | MIT |
+| balanced | qwen3.5:latest | 4.5GB | 12GB | Apache 2.0 |
+| quality | llama3.1:latest | 4.9GB | 16GB | Meta Community |
 
 ### Profile Comparison
 
@@ -187,10 +224,11 @@ Configuration files: `config/default.toml`, `config/profiles/`.
 |---------|------|----------|---------|
 | Statistical detection | No | Yes | Yes |
 | Binoculars (Tier 3) | No | No | Yes |
-| Search iterations | 1 | 3 | 5 |
+| Search iterations | 1 | 5 | 8 |
 | LaTeX validation | No | Yes | Yes |
-| Embedding threshold | 0.75 | 0.80 | 0.85 |
-| BERTScore threshold | 0.82 | 0.88 | 0.90 |
+| Embedding threshold | 0.65 | 0.65 | 0.78 |
+| NLI mode | Relaxed | Relaxed | Bidirectional |
+| BERTScore | Off | Off | On (0.87) |
 
 ## Web UI
 
@@ -249,10 +287,12 @@ src/lucid/
 │   └── explain.py      # Feature attribution
 ├── transform/          # Text transformation
 │   ├── ollama.py       # Async Ollama HTTP client
-│   ├── operators.py    # 5 transformation strategies
+│   ├── operators.py    # 5 transformation strategies (math-aware selection)
 │   ├── prompts.py      # Prompt construction
-│   ├── search.py       # Beam search over operator space
-│   └── term_protect.py # Named entity + regex term protection
+│   ├── search.py       # Search over operator space with adaptive fallback
+│   ├── chunk_policy.py # Chunk targeting heuristics (too_short, math_heavy, etc.)
+│   ├── similarity.py   # Quick semantic similarity gate
+│   └── term_protect.py # Named entity + regex term protection (dynamic cap)
 ├── evaluator/          # Evaluation pipeline orchestrator
 ├── metrics/            # Modular metric checkers
 │   ├── embedding.py    # MiniLM cosine similarity
