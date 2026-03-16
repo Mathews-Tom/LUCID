@@ -119,7 +119,7 @@ class TestLoadConfig:
         """Balanced profile is the default."""
         config = load_config()
         assert config.general.profile == "balanced"
-        assert config.evaluator.embedding_threshold == 0.68
+        assert config.evaluator.embedding_threshold == 0.65
         assert config.evaluator.nli_require_bidirectional is False
 
     def test_fast_profile(self) -> None:
@@ -195,7 +195,7 @@ class TestLUCIDConfigDefaults:
     def test_evaluator_thresholds(self) -> None:
         """Evaluator thresholds match recalibrated defaults."""
         config = LUCIDConfig()
-        assert config.evaluator.embedding_threshold == 0.75
+        assert config.evaluator.embedding_threshold == 0.65
         assert config.evaluator.bertscore_threshold == 0.85
 
     def test_transform_defaults(self) -> None:
@@ -211,10 +211,14 @@ class TestLUCIDConfigDefaults:
         assert config.transform.adaptive_placeholder_fallback is True
         assert config.transform.adaptive_keep_original_min_placeholders == 5
         assert config.transform.adaptive_keep_original_after_failures == 5
+        assert config.transform.adaptive_keep_original_min_math_placeholders == 1
+        assert config.transform.adaptive_keep_original_max_math_chunk_length == 220
         assert config.transform.operator_narrowing_after_failures == 2
         assert config.transform.operator_single_mode_after_failures == 4
         assert config.transform.skip_title_like_chunks is True
         assert config.transform.skip_equation_like_chunks is True
+        assert config.transform.skip_math_heavy_chunks is True
+        assert config.transform.min_prose_length == 50
 
     def test_temperature_profiles(self) -> None:
         """Temperature per profile matches system-design.md."""

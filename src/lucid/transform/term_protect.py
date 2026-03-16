@@ -198,8 +198,10 @@ class TermProtector:
             new = self._extract_custom_spans(text, occupied)
             spans.extend((start, end, matched, 4) for start, end, matched in new)
 
-        # Priority 5: numbers
-        if self._config.protect_numbers:
+        # Priority 5: numbers (skip when math placeholders are present — bare
+        # numbers in LaTeX prose are low-value targets since significant numbers
+        # are already inside $...$ and captured as [MATH_NNN] placeholders)
+        if self._config.protect_numbers and not math_placeholders:
             new = self._extract_number_spans(text, occupied)
             spans.extend((start, end, matched, 5) for start, end, matched in new)
 
@@ -209,7 +211,12 @@ class TermProtector:
             spans.extend((start, end, matched, 6) for start, end, matched in new)
 
         # Enforce max_placeholders using explicit priority first, then position.
+        # When math placeholders are present, reduce the term budget so total
+        # placeholder load stays within LLM attention capacity.
+        math_count = len(math_placeholders)
         max_ph = self._config.max_placeholders
+        if math_count > 0 and max_ph > 0:
+            max_ph = max(2, max_ph - math_count)
         if max_ph > 0 and len(spans) > max_ph:
             spans.sort(key=lambda t: (t[3], t[0]))
             spans = spans[:max_ph]

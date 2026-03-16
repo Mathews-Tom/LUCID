@@ -13,6 +13,7 @@ search_iterations = 8
 
 [evaluator]
 embedding_threshold = 0.78
+nli_require_bidirectional = true
 bertscore_threshold = 0.87
 
 [validation]

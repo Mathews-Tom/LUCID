@@ -203,6 +203,8 @@ class LUCIDPipeline:
                 chunk,
                 skip_title_like=self._config.transform.skip_title_like_chunks,
                 skip_equation_like=self._config.transform.skip_equation_like_chunks,
+                skip_math_heavy=self._config.transform.skip_math_heavy_chunks,
+                min_prose_length=self._config.transform.min_prose_length,
             )
             if reason is None:
                 filtered_target_chunks.append(chunk)

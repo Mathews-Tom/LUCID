@@ -1,6 +1,6 @@
 # Pipeline
 
-The pipeline module orchestrates the full LUCID detect-humanize-evaluate-reconstruct flow.
+The pipeline module orchestrates the full LUCID detect-transform-evaluate-reconstruct flow.
 
 ## Pipeline States
 

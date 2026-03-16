@@ -30,6 +30,7 @@ def select_operator(
     iteration: int,
     *,
     placeholder_count: int = 0,
+    math_placeholder_count: int = 0,
     placeholder_failures: int = 0,
     narrow_after_failures: int = 2,
     single_operator_after_failures: int = 4,
@@ -42,6 +43,10 @@ def select_operator(
     - repeated placeholder failures: narrow to safer operators, then STANDARD only
     """
     members = list(Operator)
+    if math_placeholder_count > 1:
+        members = [Operator.STANDARD]
+    elif math_placeholder_count > 0:
+        members = [Operator.STANDARD, Operator.RESTRUCTURE]
     if placeholder_count > 5:
         members = [Operator.STANDARD, Operator.RESTRUCTURE]
     elif placeholder_count > 3:

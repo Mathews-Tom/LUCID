@@ -84,6 +84,22 @@ def test_select_operator_uses_safe_subset_for_heavy_placeholders() -> None:
         assert select_operator(i, placeholder_count=6) == exp
 
 
+def test_select_operator_uses_conservative_subset_for_math_placeholders() -> None:
+    expected = [
+        Operator.STANDARD,
+        Operator.RESTRUCTURE,
+        Operator.STANDARD,
+        Operator.RESTRUCTURE,
+    ]
+    for i, exp in enumerate(expected):
+        assert select_operator(i, math_placeholder_count=1) == exp
+
+
+def test_select_operator_uses_standard_only_for_multi_math_placeholders() -> None:
+    for i in range(5):
+        assert select_operator(i, math_placeholder_count=2) == Operator.STANDARD
+
+
 def test_select_operator_narrows_after_placeholder_failures() -> None:
     expected = [
         Operator.STANDARD,

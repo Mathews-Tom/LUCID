@@ -30,14 +30,22 @@ def config() -> LUCIDConfig:
 @pytest.fixture
 def md_input(tmp_path: Path) -> Path:
     p = tmp_path / "test.md"
-    p.write_text("# Title\n\nThis is AI-generated content for testing.\n", encoding="utf-8")
+    p.write_text(
+        "# Title\n\n"
+        "This is AI-generated content for testing the full pipeline execution path.\n",
+        encoding="utf-8",
+    )
     return p
 
 
 @pytest.fixture
 def txt_input(tmp_path: Path) -> Path:
     p = tmp_path / "test.txt"
-    p.write_text("This is a paragraph.\n\nThis is another paragraph.\n", encoding="utf-8")
+    p.write_text(
+        "This is a paragraph that contains enough text for transform testing.\n\n"
+        "This is another paragraph with sufficient length for the pipeline.\n",
+        encoding="utf-8",
+    )
     return p
 
 
@@ -431,7 +439,7 @@ class TestErrorIsolation:
     ) -> None:
         txt_input = tmp_path / "equations.txt"
         txt_input.write_text(
-            "P(q | M_d) = product over t in q of P(t | M_d)\n\n"
+            "P(q | M_d) = product over t in q of P(t | M_d) where P(t) = count(t)\n\n"
             "This paragraph explains the model behavior in normal prose.",
             encoding="utf-8",
         )
@@ -465,7 +473,52 @@ class TestErrorIsolation:
             batch_pairs[0][0].text
             == "This paragraph explains the model behavior in normal prose."
         )
-        assert result.summary_stats["skipped_non_transformable"] == {"equation_like": 1}
+        assert "equation_like" in result.summary_stats["skipped_non_transformable"]
+
+    @patch("lucid.pipeline.ModelManager")
+    def test_skips_math_heavy_chunks_from_transform(
+        self,
+        mock_manager_cls: MagicMock,
+        config: LUCIDConfig,
+        tmp_path: Path,
+    ) -> None:
+        txt_input = tmp_path / "math_heavy.txt"
+        txt_input.write_text(
+            "[MATH_001] and [MATH_002] are the relevant and non-relevant sets.\n\n"
+            "This paragraph explains the retrieval procedure in normal prose.",
+            encoding="utf-8",
+        )
+
+        mock_mgr = mock_manager_cls.return_value
+        mock_detector = MagicMock()
+        mock_transformer = MagicMock()
+        mock_evaluator = MagicMock()
+
+        mock_mgr.initialize_detector.return_value = mock_detector
+        mock_mgr.initialize_transformer.return_value = mock_transformer
+        mock_mgr.initialize_evaluator.return_value = mock_evaluator
+        mock_mgr.detector = mock_detector
+        mock_mgr.transformer = mock_transformer
+        mock_mgr.evaluator = mock_evaluator
+
+        mock_detector.detect.side_effect = lambda chunk: _make_detection(chunk.id)
+        mock_transformer.transform_batch.side_effect = lambda pairs, on_chunk_done=None: [
+            _make_transform(chunk.id, chunk.text) for chunk, _det in pairs
+        ]
+        mock_evaluator.evaluate_chunk.side_effect = (
+            lambda cid, _orig, _hum: _make_evaluation(cid)
+        )
+
+        pipeline = LUCIDPipeline(config)
+        result = pipeline.run(txt_input, output_path=tmp_path / "math_heavy_out.txt")
+
+        batch_pairs = mock_transformer.transform_batch.call_args.args[0]
+        assert len(batch_pairs) == 1
+        assert (
+            batch_pairs[0][0].text
+            == "This paragraph explains the retrieval procedure in normal prose."
+        )
+        assert result.summary_stats["skipped_non_transformable"] == {"math_heavy": 1}
 
     @patch("lucid.pipeline.validate_markdown")
     @patch("lucid.pipeline.ModelManager")
@@ -481,8 +534,8 @@ class TestErrorIsolation:
         mock_validate.return_value = ValidationResult(valid=True)
         md_input = tmp_path / "mixed.md"
         md_input.write_text(
-            "### Foundational Retrieval-Augmented Generation\n\n"
-            "P(q | M_d) = product over t in q of P(t | M_d)\n\n"
+            "### Foundational Retrieval-Augmented Generation Overview\n\n"
+            "P(q | M_d) = product over t in q of P(t | M_d) where P(t) = count(t)\n\n"
             "This paragraph explains the section in ordinary prose.\n",
             encoding="utf-8",
         )

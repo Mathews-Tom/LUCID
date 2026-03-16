@@ -391,6 +391,97 @@ class TestMathPlaceholderPassThrough:
 
 
 # ---------------------------------------------------------------------------
+# Dynamic placeholder cap with math
+# ---------------------------------------------------------------------------
+
+
+class TestDynamicPlaceholderCapWithMath:
+    def test_max_placeholders_reduced_by_math_count(self) -> None:
+        """When math placeholders are present, term budget shrinks."""
+        math_ph = {
+            _placeholder("MATH", 0): r"$\alpha$",
+            _placeholder("MATH", 1): r"$\beta$",
+            _placeholder("MATH", 2): r"$\gamma$",
+        }
+        text = (
+            f"Let {_placeholder('MATH', 0)} and {_placeholder('MATH', 1)} "
+            f"and {_placeholder('MATH', 2)} be given. "
+            "See [Adams, 2021] and [Brown, 2022] and [Clark, 2023]. "
+            "Dataset 100 uses baseline 200 on 300 samples with 400 epochs "
+            "and 500 learning rate."
+        )
+        chunk = _make_chunk(text, math_placeholders=math_ph)
+        protector = TermProtector(
+            _cfg(
+                use_ner=False,
+                protect_citations=True,
+                protect_numbers=True,
+                max_placeholders=8,
+            )
+        )
+        result = protector.protect(chunk)
+
+        # max_ph = max(2, 8 - 3) = 5 term slots.
+        assert len(result.term_placeholders) <= 5
+
+    def test_min_two_term_placeholders_even_with_many_math(self) -> None:
+        """Floor of 2 term placeholders regardless of math count."""
+        math_ph = {_placeholder("MATH", i): f"$x_{i}$" for i in range(7)}
+        placeholders = " ".join(_placeholder("MATH", i) for i in range(7))
+        text = f"{placeholders} and see [Smith, 2024] and [Jones, 2023] and [Lee, 2022]."
+        chunk = _make_chunk(text, math_placeholders=math_ph)
+        protector = TermProtector(
+            _cfg(
+                use_ner=False,
+                protect_citations=True,
+                protect_numbers=True,
+                max_placeholders=8,
+            )
+        )
+        result = protector.protect(chunk)
+
+        # max_ph = max(2, 8 - 7) = 2
+        assert len(result.term_placeholders) <= 2
+        assert len(result.term_placeholders) >= 1
+
+    def test_numbers_skipped_when_math_placeholders_present(self) -> None:
+        """Bare numbers are not protected when math placeholders exist."""
+        math_ph = {_placeholder("MATH", 0): r"$N$"}
+        text = f"There are 256 samples and {_placeholder('MATH', 0)} documents."
+        chunk = _make_chunk(text, math_placeholders=math_ph)
+        protector = TermProtector(
+            _cfg(
+                use_ner=False,
+                protect_citations=False,
+                protect_numbers=True,
+                protect_cap_phrases=False,
+            )
+        )
+        result = protector.protect(chunk)
+
+        # "256" must remain in the text (not protected)
+        assert "256" in result.text
+        assert not any("256" in v for v in result.term_placeholders.values())
+
+    def test_numbers_protected_without_math_placeholders(self) -> None:
+        """Numbers are still protected when no math placeholders exist."""
+        text = "There are 256 samples."
+        chunk = _make_chunk(text)
+        protector = TermProtector(
+            _cfg(
+                use_ner=False,
+                protect_citations=False,
+                protect_numbers=True,
+                protect_cap_phrases=False,
+            )
+        )
+        result = protector.protect(chunk)
+
+        assert "256" not in result.text
+        assert any("256" in v for v in result.term_placeholders.values())
+
+
+# ---------------------------------------------------------------------------
 # Counter starts after max math index
 # ---------------------------------------------------------------------------
 
