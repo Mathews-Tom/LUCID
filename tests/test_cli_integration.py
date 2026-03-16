@@ -216,6 +216,138 @@ class TestTransformCommand:
         assert report_file.exists()
 
 
+class TestTransformParagraph:
+    """transform --paragraph mode."""
+
+    @patch("lucid.pipeline.LUCIDPipeline")
+    def test_paragraph_prints_transformed_output(
+        self,
+        mock_pipeline_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        transformed = "The approach demonstrates strong empirical results."
+
+        def _run_side_effect(
+            input_path: Path, output_path: Path | None = None, **kwargs: object
+        ) -> DocumentResult:
+            # Write transformed content to the output file
+            if output_path is not None:
+                output_path.write_text(transformed, encoding="utf-8")
+            return DocumentResult(
+                input_path=str(input_path),
+                format="plaintext",
+                output_path=str(output_path) if output_path else None,
+                summary_stats={},
+            )
+
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.run.side_effect = _run_side_effect
+
+        result = runner.invoke(
+            main,
+            ["transform", "--paragraph", "This method shows good results.", "--format", "txt"],
+        )
+
+        assert result.exit_code == 0
+        assert transformed in result.output
+
+    @patch("lucid.pipeline.LUCIDPipeline")
+    def test_paragraph_uses_tex_extension(
+        self,
+        mock_pipeline_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        captured_paths: list[Path] = []
+
+        def _run_side_effect(
+            input_path: Path, output_path: Path | None = None, **kwargs: object
+        ) -> DocumentResult:
+            captured_paths.append(input_path)
+            if output_path is not None:
+                output_path.write_text("transformed", encoding="utf-8")
+            return DocumentResult(
+                input_path=str(input_path),
+                format="latex",
+                output_path=str(output_path) if output_path else None,
+                summary_stats={},
+            )
+
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.run.side_effect = _run_side_effect
+
+        result = runner.invoke(
+            main,
+            ["transform", "-p", "Some LaTeX prose.", "--format", "tex"],
+        )
+
+        assert result.exit_code == 0
+        assert captured_paths[0].suffix == ".tex"
+
+    def test_paragraph_and_input_path_are_mutually_exclusive(
+        self, runner: CliRunner, md_file: Path
+    ) -> None:
+        result = runner.invoke(
+            main,
+            ["transform", str(md_file), "--paragraph", "some text"],
+        )
+        assert result.exit_code != 0
+        assert "not both" in result.output
+
+    def test_no_input_shows_usage_error(self, runner: CliRunner) -> None:
+        result = runner.invoke(main, ["transform"])
+        assert result.exit_code != 0
+
+    @patch("lucid.pipeline.LUCIDPipeline")
+    def test_stdin_reads_from_pipe(
+        self,
+        mock_pipeline_cls: MagicMock,
+        runner: CliRunner,
+    ) -> None:
+        transformed = "Rewritten paragraph from stdin."
+
+        def _run_side_effect(
+            input_path: Path, output_path: Path | None = None, **kwargs: object
+        ) -> DocumentResult:
+            if output_path is not None:
+                output_path.write_text(transformed, encoding="utf-8")
+            return DocumentResult(
+                input_path=str(input_path),
+                format="latex",
+                output_path=str(output_path) if output_path else None,
+                summary_stats={},
+            )
+
+        mock_pipeline = mock_pipeline_cls.return_value
+        mock_pipeline.run.side_effect = _run_side_effect
+
+        result = runner.invoke(
+            main,
+            ["transform", "--stdin", "--format", "tex"],
+            input="where $N$ is the total number of documents.\n",
+        )
+
+        assert result.exit_code == 0
+        assert transformed in result.output
+
+    def test_stdin_and_paragraph_are_mutually_exclusive(
+        self, runner: CliRunner
+    ) -> None:
+        result = runner.invoke(
+            main,
+            ["transform", "--stdin", "--paragraph", "text"],
+            input="stdin text\n",
+        )
+        assert result.exit_code != 0
+
+    def test_stdin_rejects_empty_input(self, runner: CliRunner) -> None:
+        result = runner.invoke(
+            main,
+            ["transform", "--stdin", "--format", "tex"],
+            input="",
+        )
+        assert result.exit_code != 0
+
+
 class TestConfigCommand:
     """config subcommand."""
 
