@@ -64,6 +64,7 @@ class EmbeddingSimilarity:
             vectors: NDArray[np.float32] = model.encode([original, paraphrase])
         a, b = vectors[0], vectors[1]
         similarity = float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
+        similarity = max(-1.0, min(1.0, similarity))
         logger.debug("Embedding similarity: %.4f", similarity)
         return EmbeddingResult(similarity=similarity)
 

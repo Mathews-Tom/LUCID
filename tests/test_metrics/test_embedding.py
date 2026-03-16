@@ -41,6 +41,20 @@ class TestEmbeddingSimilarity:
         assert result.similarity == pytest.approx(1.0)
 
     @patch("sentence_transformers.SentenceTransformer")
+    def test_similarity_is_clamped_into_valid_range(self, mock_cls: MagicMock) -> None:
+        """Floating-point drift above 1.0 should be clamped before result construction."""
+        mock_model = MagicMock()
+        mock_model.encode.return_value = np.array(
+            [[1.0, 0.0], [1.0000001, 0.0]],
+            dtype=np.float32,
+        )
+        mock_cls.return_value = mock_model
+
+        result = self.scorer.compute("same", "same")
+
+        assert result.similarity == 1.0
+
+    @patch("sentence_transformers.SentenceTransformer")
     def test_orthogonal_vectors_similarity_zero(self, mock_cls: MagicMock) -> None:
         """Orthogonal vectors yield cosine similarity of 0.0."""
         mock_model = MagicMock()

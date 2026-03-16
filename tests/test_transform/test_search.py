@@ -420,6 +420,7 @@ class TestAdversarialLoop:
         assert result.transformed_text == chunk.text
         assert result.fallback_mode == "keep_original"
         assert result.diagnostics["final_status"] == "adaptive_keep_original"
+        assert result.iteration_count == 2
 
     def test_adaptive_placeholder_fallback_keeps_original_after_repeated_failures(self) -> None:
         """Repeated placeholder failures trigger keep-original before hard failure."""
@@ -452,6 +453,55 @@ class TestAdversarialLoop:
         assert result.transformed_text == chunk.text
         assert result.fallback_mode == "keep_original"
         assert result.diagnostics["placeholder_failures"] >= 2
+
+    def test_math_heavy_chunk_keeps_original_under_adaptive_fallback(self) -> None:
+        """Short LaTeX-style prose with math placeholders should fail closed to original."""
+        text = "This is the language model that was made from document [MATH_012]."
+        chunk = _make_chunk(text)
+        chunk.math_placeholders = {"[MATH_012]": "$d$"}
+        chunk.protected_text = text
+        detection = _make_detection(chunk.id)
+        config = TransformConfig(
+            search_iterations=1,
+            search_target_score=0.25,
+            temperature=TemperatureProfileConfig(),
+            adaptive_keep_original_min_math_placeholders=1,
+            adaptive_keep_original_max_math_chunk_length=220,
+            term_protection=TermProtectionConfig(
+                use_ner=False,
+                protect_citations=False,
+                protect_numbers=False,
+            ),
+        )
+
+        client = _make_mock_client(
+            [
+                "The output for this example should be a rewritten paragraph based "
+                "on the input provided."
+            ]
+        )
+        detector = _make_mock_detector([0.40])
+
+        term_protector = TermProtector(config.term_protection)
+        prompt_builder = PromptBuilder(examples_dir=None)
+
+        result = asyncio.run(
+            transformation_search(
+                chunk,
+                detection,
+                client,
+                detector,
+                term_protector,
+                prompt_builder,
+                config,
+                "phi3:3.8b",
+                "fast",
+            )
+        )
+
+        assert result.transformed_text == chunk.text
+        assert result.fallback_mode == "keep_original"
+        assert result.diagnostics["final_status"] == "adaptive_keep_original_math"
 
     def test_all_iterations_and_unprotected_fallback_fail_raises_runtime_error(self) -> None:
         """RuntimeError raised when explicit unsafe fallback also fails."""

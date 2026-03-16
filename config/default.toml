@@ -48,10 +48,14 @@ fallback_policy = "mark_failed"
 adaptive_placeholder_fallback = true
 adaptive_keep_original_min_placeholders = 5
 adaptive_keep_original_after_failures = 5
+adaptive_keep_original_min_math_placeholders = 1
+adaptive_keep_original_max_math_chunk_length = 220
 operator_narrowing_after_failures = 2
 operator_single_mode_after_failures = 4
 skip_title_like_chunks = true
 skip_equation_like_chunks = true
+skip_math_heavy_chunks = true
+min_prose_length = 50
 
 [transform.temperature]
 fast = 0.7
@@ -68,9 +72,9 @@ max_placeholders = 8
 
 [evaluator]
 embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
-embedding_threshold = 0.70
+embedding_threshold = 0.65
 nli_model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
-nli_require_bidirectional = true
+nli_require_bidirectional = false
 bertscore_threshold = 0.85
 bertscore_model = "microsoft/deberta-xlarge-mnli"
 max_concurrent = 2

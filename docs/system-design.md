@@ -642,7 +642,7 @@ Parse the log file for errors. If compilation fails, report the specific error a
 profile = "balanced"           # "fast" | "balanced" | "quality"
 language = "en"                # English only for v1.0
 log_level = "info"             # "debug" | "info" | "warn" | "error"
-output_dir = "./spectra_output"
+output_dir = "./lucid_output"
 
 [ollama]
 host = "http://localhost:11434"
@@ -650,40 +650,80 @@ timeout_seconds = 120
 health_check_on_start = true
 
 [ollama.models]
-fast = "phi3:3.8b"
+fast = "phi4:latest"
 balanced = "qwen3.5:latest"
-quality = "llama3.2:8b"
+quality = "llama3.1:latest"
 
 [detection]
 enabled = true
-roberta_model = "roberta-base-openai-detector"   # HuggingFace model ID
+roberta_model = "openai-community/roberta-base-openai-detector"
 use_statistical = true
-use_binoculars = false                            # Disabled by default
-ensemble_weights = { roberta = 0.7, statistical = 0.3 }
-ensemble_weights_with_binoculars = { roberta = 0.4, statistical = 0.15, binoculars = 0.45 }
+use_binoculars = false         # Disabled by default (expensive)
+max_concurrent = 4
+
+[detection.ensemble_weights]
+roberta = 0.7
+statistical = 0.3
+
+[detection.ensemble_weights_with_binoculars]
+roberta = 0.4
+statistical = 0.15
+binoculars = 0.45
 
 [detection.thresholds]
 human_max = 0.30               # Below this = definitely human
 ai_min = 0.65                  # Above this = definitely AI
 ambiguity_triggers_binoculars = true
 
-[humanizer]
+[transform]                    # Renamed from [humanizer] in refactor Phase 1
 max_retries = 3                # Max paraphrase attempts per chunk
-adversarial_iterations = 5     # Max iterations in adversarial mode (quality profile)
-temperature = { fast = 0.7, balanced = 0.6, quality = 0.5 }
-adversarial_target_score = 0.25  # Detection score to aim for in adversarial mode
+max_concurrent = 2
+search_iterations = 8          # Max search loop iterations (quality profile)
+search_target_score = 0.35     # Detection score target during search
+transform_ambiguous = true     # Transform chunks in the ambiguous detection band
+semantic_gate_threshold = 0.0  # Minimum semantic similarity to accept a candidate
+minimum_candidate_similarity = 0.0
+reject_prompt_echo = true      # Reject candidates that echo the prompt verbatim
+fallback_policy = "mark_failed"  # "mark_failed" | "keep_original"
 
-[humanizer.term_protection]
+# Adaptive placeholder fallback — reduces placeholders on repeated failures
+adaptive_placeholder_fallback = true
+adaptive_keep_original_min_placeholders = 5
+adaptive_keep_original_after_failures = 5
+adaptive_keep_original_min_math_placeholders = 1
+adaptive_keep_original_max_math_chunk_length = 220
+
+# Operator narrowing — restricts operator set after repeated failures
+operator_narrowing_after_failures = 2
+operator_single_mode_after_failures = 4
+
+# Chunk policy filters — skip chunks unlikely to benefit from transform
+skip_title_like_chunks = true    # Short heading-style chunks
+skip_equation_like_chunks = true # Standalone equations / display math
+skip_math_heavy_chunks = true    # Chunks dominated by math content
+min_prose_length = 50            # Minimum character count for prose chunks
+
+[transform.temperature]
+fast = 0.7
+balanced = 0.5
+quality = 0.4
+
+[transform.term_protection]
 use_ner = true                 # spaCy NER for auto-detection
 custom_terms = []              # User-defined terms to protect
 protect_citations = true
 protect_numbers = true
+protect_cap_phrases = true     # Protect capitalized multi-word phrases
+max_placeholders = 8           # Cap placeholder count per chunk
 
 [evaluator]
-embedding_threshold = 0.80
-nli_require_bidirectional = true
-bertscore_threshold = 0.88
+embedding_model = "sentence-transformers/all-MiniLM-L6-v2"
+embedding_threshold = 0.65
+nli_model = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
+nli_require_bidirectional = false
+bertscore_threshold = 0.85
 bertscore_model = "microsoft/deberta-xlarge-mnli"
+max_concurrent = 2
 
 [parser]
 latex_library = "pylatexenc"

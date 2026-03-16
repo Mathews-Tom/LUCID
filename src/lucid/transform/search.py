@@ -88,6 +88,8 @@ def _should_adaptive_keep_original(
     config: TransformConfig,
     *,
     placeholder_count: int,
+    math_placeholder_count: int,
+    chunk_length: int,
     placeholder_failures: int,
     aborted_on_placeholder_failures: bool,
 ) -> bool:
@@ -99,6 +101,21 @@ def _should_adaptive_keep_original(
     if placeholder_failures >= config.adaptive_keep_original_after_failures:
         return True
     return aborted_on_placeholder_failures and placeholder_failures > 0
+
+
+def _should_keep_original_for_math_chunk(
+    config: TransformConfig,
+    *,
+    math_placeholder_count: int,
+    chunk_length: int,
+) -> bool:
+    """Decide whether a math-coupled chunk should fail closed before rewriting."""
+    if not config.adaptive_placeholder_fallback:
+        return False
+    return (
+        math_placeholder_count >= config.adaptive_keep_original_min_math_placeholders
+        and chunk_length <= config.adaptive_keep_original_max_math_chunk_length
+    )
 
 
 def _prefers_candidate(candidate: TransformResult, incumbent: TransformResult) -> bool:
@@ -167,6 +184,7 @@ async def transformation_search(
     temperature = getattr(config.temperature, profile)
     all_placeholders = protected.all_placeholders()
     placeholder_count = len(all_placeholders)
+    math_placeholder_count = len(protected.math_placeholders)
 
     # Scale num_predict with input length to avoid truncation on long chunks
     input_token_estimate = len(protected.text.split()) * 2
@@ -200,11 +218,44 @@ async def transformation_search(
     attempted_operators: list[str] = []
     iterations_attempted = 0
     aborted_on_placeholder_failures = False
+    if _should_keep_original_for_math_chunk(
+        config,
+        math_placeholder_count=math_placeholder_count,
+        chunk_length=len(chunk.text),
+    ):
+        return TransformResult(
+            chunk_id=chunk.id,
+            original_text=chunk.text,
+            transformed_text=chunk.text,
+            iteration_count=0,
+            operator_used="identity_keep_original",
+            final_detection_score=detection.ensemble_score,
+            semantic_similarity=1.0,
+            fallback_mode="keep_original",
+            diagnostics=_build_search_diagnostics(
+                chunk=chunk,
+                placeholder_count=placeholder_count,
+                attempted_operators=[],
+                configured_iterations=config.search_iterations,
+                iterations_attempted=0,
+                placeholder_failures=0,
+                semantic_gate_rejections=0,
+                low_similarity_rejections=0,
+                prompt_echo_rejections=0,
+                restore_failures=0,
+                retries_used=0,
+                aborted_on_placeholder_failures=False,
+                fallback_policy=config.fallback_policy,
+                fallback_mode="keep_original",
+                final_status="adaptive_keep_original_math",
+            ),
+        )
 
     for i in range(config.search_iterations):
         operator = select_operator(
             i,
             placeholder_count=placeholder_count,
+            math_placeholder_count=math_placeholder_count,
             placeholder_failures=placeholder_failure_count,
             narrow_after_failures=config.operator_narrowing_after_failures,
             single_operator_after_failures=config.operator_single_mode_after_failures,
@@ -437,6 +488,8 @@ async def transformation_search(
         and _should_adaptive_keep_original(
             config,
             placeholder_count=placeholder_count,
+            math_placeholder_count=math_placeholder_count,
+            chunk_length=len(chunk.text),
             placeholder_failures=placeholder_failure_count,
             aborted_on_placeholder_failures=aborted_on_placeholder_failures,
         )

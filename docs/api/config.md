@@ -41,8 +41,8 @@ LUCID uses a layered TOML configuration system with typed dataclass mapping.
       show_source: false
       members: false
 
-### HumanizerConfig
-::: lucid.config.HumanizerConfig
+### TransformConfig
+::: lucid.config.TransformConfig
     options:
       show_source: false
       members: false

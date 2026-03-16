@@ -130,10 +130,14 @@ class TransformConfig:
     adaptive_placeholder_fallback: bool = True
     adaptive_keep_original_min_placeholders: int = 5
     adaptive_keep_original_after_failures: int = 5
+    adaptive_keep_original_min_math_placeholders: int = 1
+    adaptive_keep_original_max_math_chunk_length: int = 220
     operator_narrowing_after_failures: int = 2
     operator_single_mode_after_failures: int = 4
     skip_title_like_chunks: bool = True
     skip_equation_like_chunks: bool = True
+    skip_math_heavy_chunks: bool = True
+    min_prose_length: int = 50
     temperature: TemperatureProfileConfig = field(default_factory=TemperatureProfileConfig)
     term_protection: TermProtectionConfig = field(default_factory=TermProtectionConfig)
 
@@ -143,9 +147,9 @@ class EvaluatorConfig:
     """Semantic evaluation settings."""
 
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
-    embedding_threshold: float = 0.75
+    embedding_threshold: float = 0.65
     nli_model: str = "MoritzLaurer/DeBERTa-v3-base-mnli-fever-docnli-ling-2c"
-    nli_require_bidirectional: bool = True
+    nli_require_bidirectional: bool = False
     bertscore_threshold: float = 0.85
     bertscore_model: str = "microsoft/deberta-xlarge-mnli"
     max_concurrent: int = 2
