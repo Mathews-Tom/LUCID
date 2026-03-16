@@ -484,7 +484,7 @@ class TestErrorIsolation:
     ) -> None:
         txt_input = tmp_path / "math_heavy.txt"
         txt_input.write_text(
-            "[MATH_001] and [MATH_002] are the relevant and non-relevant sets.\n\n"
+            "[MATH_001], [MATH_002], [MATH_003], [MATH_004], [MATH_005].\n\n"
             "This paragraph explains the retrieval procedure in normal prose.",
             encoding="utf-8",
         )
